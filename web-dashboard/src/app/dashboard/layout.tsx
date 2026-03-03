@@ -4,7 +4,7 @@ import React, { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { LayoutDashboard, Users, Database, Globe, ChevronLeft, ChevronRight } from "lucide-react";
+import { LayoutDashboard, Users, Database, Globe, ChevronLeft, ChevronRight, Terminal } from "lucide-react";
 
 export default function DashboardLayout({
     children,
@@ -16,6 +16,7 @@ export default function DashboardLayout({
 
     const navItems = [
         { name: "戰術控制台", href: "/dashboard", icon: LayoutDashboard },
+        { name: "終端機控制台", href: "/dashboard/terminal", icon: Terminal },
         { name: "Agent 會議室", href: "/dashboard/agents", icon: Users },
         { name: "辦公室模式", href: "/dashboard/office", icon: Users },
     ];
@@ -48,7 +49,13 @@ export default function DashboardLayout({
                 <nav className="flex-1 py-4 space-y-2 overflow-hidden flex flex-col items-center">
                     {navItems.map((item) => {
                         const Icon = item.icon;
-                        const isActive = pathname === item.href;
+
+                        // Smarter isActive: 
+                        // 1. For root dashboard, must be exact (or with trailing slash)
+                        // 2. For others, startsWith is fine to catch sub-sub routes if any
+                        const isActive = item.href === "/dashboard"
+                            ? (pathname === "/dashboard" || pathname === "/dashboard/")
+                            : pathname.startsWith(item.href);
 
                         return (
                             <Link

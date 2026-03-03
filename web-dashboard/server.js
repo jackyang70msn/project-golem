@@ -10,6 +10,19 @@ class WebServer {
         this.app = express();
         this.app.use(express.json()); // Enable JSON body parsing
         this.server = http.createServer(this.app);
+
+        // Security & Cleanup Middleware
+        this.app.use((req, res, next) => {
+            // Set a sensible CSP to avoid Chrome defaults blocking things during redirects
+            res.setHeader('Content-Security-Policy', "default-src 'self'; connect-src 'self' ws: wss:; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:;");
+            next();
+        });
+
+        // Silencing Chrome's default searching for devtools config to avoid 404 noise
+        this.app.get('/.well-known/appspecific/com.chrome.devtools.json', (req, res) => {
+            res.json({});
+        });
+
         this.io = new Server(this.server, {
             cors: {
                 origin: "*", // Allow Next.js dev server
@@ -32,22 +45,32 @@ class WebServer {
     }
 
     init() {
-        // Serve static files
+        // Serve static files with .html extension support
         const publicPath = path.join(__dirname, 'out');
-        this.app.use(express.static(publicPath));
+        this.app.use(express.static(publicPath, { extensions: ['html'] }));
 
         // Fix Next.js static export routing
         this.app.get('/', (req, res) => {
             res.redirect('/dashboard');
         });
-        this.app.get('/dashboard', (req, res) => {
+
+        // Ensure /dashboard and sub-routes are handled for SPA
+        const dashboardRoutes = ['/dashboard', '/dashboard/terminal', '/dashboard/agents', '/dashboard/office'];
+        dashboardRoutes.forEach(route => {
+            this.app.get(route, (req, res) => {
+                const fileName = route === '/dashboard' ? 'dashboard.html' : `${route.replace(/^\//, '')}.html`;
+                const fullPath = path.join(publicPath, fileName);
+                if (fs.existsSync(fullPath)) {
+                    res.sendFile(fullPath);
+                } else {
+                    res.sendFile(path.join(publicPath, 'dashboard.html'));
+                }
+            });
+        });
+
+        // Catch-all fallback for any other /dashboard/* routes
+        this.app.get(/\/dashboard\/.*/, (req, res) => {
             res.sendFile(path.join(publicPath, 'dashboard.html'));
-        });
-        this.app.get('/dashboard/agents', (req, res) => {
-            res.sendFile(path.join(publicPath, 'dashboard', 'agents.html'));
-        });
-        this.app.get('/dashboard/office', (req, res) => {
-            res.sendFile(path.join(publicPath, 'dashboard', 'office.html'));
         });
 
 

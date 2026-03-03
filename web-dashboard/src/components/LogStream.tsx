@@ -11,7 +11,7 @@ interface LogMessage {
     raw?: string;
 }
 
-export function LogStream({ className }: { className?: string }) {
+export function LogStream({ className, types, autoScroll = true }: { className?: string, types?: string[], autoScroll?: boolean }) {
     const [logs, setLogs] = useState<LogMessage[]>([]);
     const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -54,7 +54,7 @@ export function LogStream({ className }: { className?: string }) {
     return (
         <div className={cn("bg-black border border-gray-800 rounded-md p-4 font-mono text-xs h-full flex flex-col", className)}>
             <div className="flex-1 overflow-y-auto space-y-1" ref={scrollRef}>
-                {logs.map((log, i) => (
+                {logs.filter(log => !types || types.includes(log.type)).map((log, i) => (
                     <div key={i} className="flex">
                         <span className="text-gray-500 mr-2">[{log.time}]</span>
                         <span className={cn(getLogColor(log.type), "break-words")}>
