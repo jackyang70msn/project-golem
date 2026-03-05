@@ -378,11 +378,23 @@ class GolemBrain {
                         yearlySummaries.length > 0 ? `年度×${yearlySummaries.length}` : null,
                         monthlySummaries.length > 0 ? `月度×${monthlySummaries.length}` : null,
                         dailySummaries.length > 0 ? `每日×${dailySummaries.length}` : null,
-                    ].filter(Boolean).join(', ');
+                    ].filter(Boolean);
 
-                    const memoryPulse = `【指令：載入長期記憶與背景壓縮】\n以下是你過去對話的多層次彙總精華（由遠至近排序：紀元 → 年度 → 月度 → 每日）。請完整閱讀並內化這些背景，將其視為你目前已知的所有先驗知識與決策紀錄：\n${historicalMemory}`;
+                    // ⚡ [Fix] Token 預算保護：超過 200K 字元時，從最舊 Tier 開始截斷
+                    const MAX_MEMORY_CHARS = 200000;
+                    if (historicalMemory.length > MAX_MEMORY_CHARS) {
+                        console.warn(`⚠️ [Brain] 歷史記憶超過 Token 預算 (${historicalMemory.length} chars > ${MAX_MEMORY_CHARS})，截斷較舊 Tier...`);
+                        historicalMemory = historicalMemory.slice(-MAX_MEMORY_CHARS);
+                    }
+
+                    // ⚡ [Fix] 動態生成注入說明，只列出實際有資料的層
+                    const tierDesc = tierCounts.length > 0
+                        ? `（涵蓋：${tierCounts.join(' → ')}）`
+                        : '';
+
+                    const memoryPulse = `【指令：載入長期記憶與背景壓縮】\n以下是你過去對話的多層次彙總精華${tierDesc}。請完整閱讀並內化這些背景，將其視為你目前已知的所有先驗知識與決策紀錄：\n${historicalMemory}`;
                     await this.sendMessage(memoryPulse, false);
-                    console.log(`🧠 [Brain] 階段二：已注入多層記憶 (${tierCounts})。`);
+                    console.log(`🧠 [Brain] 階段二：已注入多層記憶 (${tierCounts.join(', ')})。`);
                 }
             } catch (e) {
                 console.warn(`⚠️ [Brain] 歷史記憶掃描或注入失敗: ${e.message}`);

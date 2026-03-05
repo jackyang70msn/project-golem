@@ -456,7 +456,10 @@ class ChatLogManager {
                             results.push({ date: dateStr, content: entry.content });
                         }
                     });
-                } catch (e) { }
+                } catch (e) {
+                    // ⚡ [Fix] 不再靜默：損毀的摘要檔會輸出警告，方便診斷記憶遺失
+                    console.warn(`⚠️ [LogManager] readTier(${tier}) 解析失敗，略過: ${file} — ${e.message}`);
+                }
             });
 
             return results;
