@@ -54,11 +54,9 @@ if (GOLEM_MODE === 'SINGLE') {
             chatId: CONFIG.TG_CHAT_ID
         });
     }
-    console.log('📡 [Config] 運行模式: 單機 (GOLEM_MODE=SINGLE)');
 } else if (fs.existsSync(golemsJsonPath)) {
     try {
         GOLEMS_CONFIG = JSON.parse(fs.readFileSync(golemsJsonPath, 'utf8'));
-        console.log(`📡 [Config] 運行模式: 多機 (${GOLEMS_CONFIG.length} 實體)`);
     } catch (e) {
         console.error("❌ [Config] golems.json 格式錯誤:", e.message);
         modeToUse = "SINGLE"; // 降級
@@ -75,11 +73,9 @@ if (modeToUse === "SINGLE" || GOLEMS_CONFIG.length === 0) {
             chatId: CONFIG.TG_CHAT_ID,
             adminId: CONFIG.ADMIN_ID
         }];
-        console.log(`ℹ️ [Config] 採用 .env 單機設定 (模式: ${modeToUse})`);
     } else {
-        console.warn("⚠️ [Config] 未發現有效的 Telegram Token 且無 golems.json，機器人可能無法運作。");
+        // console.warn("⚠️ [Config] 未發現有效的 Telegram Token 且無 golems.json，機器人可能無法運作。");
     }
-    console.log('📡 [Config] 運行模式: 單機 (fallback，無 golems.json)');
 }
 
 // 確保 ID 唯一，且都有基本的 Token 屬性

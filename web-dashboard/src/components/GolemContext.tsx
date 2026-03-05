@@ -16,6 +16,7 @@ interface GolemContextType {
     hasGolems: boolean;
     isLoadingGolems: boolean;
     refreshGolems: () => void;
+    startGolem: (id: string) => Promise<boolean>;
     isSystemConfigured: boolean;
     isLoadingSystem: boolean;
 }
@@ -28,7 +29,8 @@ const GolemContext = createContext<GolemContextType>({
     hasGolems: false,
     isLoadingGolems: true,
     refreshGolems: () => { },
-    isSystemConfigured: true, // optimistic default to avoid flash
+    startGolem: async () => false,
+    isSystemConfigured: true,
     isLoadingSystem: true,
 });
 
@@ -38,7 +40,7 @@ export function GolemProvider({ children }: { children: React.ReactNode }) {
     const [golems, setGolems] = useState<GolemInfo[]>([]);
     const [activeGolem, setActiveGolem] = useState<string>("");
     const [isLoadingGolems, setIsLoadingGolems] = useState(true);
-    const [isSystemConfigured, setIsSystemConfigured] = useState(true);
+    const [isSystemConfigured, setIsSystemConfigured] = useState(false);
     const [isLoadingSystem, setIsLoadingSystem] = useState(true);
 
     const fetchGolems = () => {
@@ -77,6 +79,25 @@ export function GolemProvider({ children }: { children: React.ReactNode }) {
             })
             .catch(() => setIsSystemConfigured(true)) // on error, don't block
             .finally(() => setIsLoadingSystem(false));
+    };
+
+    const startGolem = async (id: string) => {
+        try {
+            const res = await fetch("/api/golems/start", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ id }),
+            });
+            const data = await res.json();
+            if (data.success) {
+                fetchGolems();
+                return true;
+            }
+            return false;
+        } catch (err) {
+            console.error("Failed to start golem", err);
+            return false;
+        }
     };
 
     useEffect(() => {
@@ -130,6 +151,7 @@ export function GolemProvider({ children }: { children: React.ReactNode }) {
             hasGolems,
             isLoadingGolems,
             refreshGolems: fetchGolems,
+            startGolem,
             isSystemConfigured,
             isLoadingSystem,
         }}>

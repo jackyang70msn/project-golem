@@ -5,10 +5,7 @@ const path = require('path');
 class SkillArchitect {
     constructor(skillsDir) {
         this.skillsDir = skillsDir || path.join(process.cwd(), 'src', 'skills', 'user');
-        // 確保目錄存在
-        if (!fs.existsSync(this.skillsDir)) {
-            fs.mkdirSync(this.skillsDir, { recursive: true });
-        }
+        this.skillsDir = skillsDir || path.join(process.cwd(), 'src', 'skills', 'user');
     }
 
     /**
@@ -18,6 +15,11 @@ class SkillArchitect {
      * @param {Array} existingSkills - 現有技能列表
      */
     async designSkill(brain, intent, existingSkills = []) {
+        // 確保目錄在實際需要時才建立
+        if (!fs.existsSync(this.skillsDir)) {
+            fs.mkdirSync(this.skillsDir, { recursive: true });
+        }
+
         console.log(`🏗️ Architect (Web): Designing skill for "${intent}"...`);
 
         // 1. 建構 System Prompt (針對 Web Gemini 的強指令)

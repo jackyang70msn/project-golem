@@ -226,17 +226,14 @@ run_health_check() {
     if [ "$KEYS_SET" = true ]; then
         box_line_colored "  ${GREEN}✔${NC}  Gemini API Keys  ${GREEN}已設定${NC}"
     else
-        box_line_colored "  ${YELLOW}△${NC}  Gemini API Keys  ${YELLOW}使用預設值 (請先設定)${NC}"
+        box_line_colored "  ${YELLOW}ℹ${NC}  Gemini API Keys  ${YELLOW}尚未設定 (可於系統啟動後透過 Dashboard 設定)${NC}"
     fi
 
     # 3.5 Golem Config
     if [ "$GOLEMS_ACTIVE_COUNT" -gt 0 ]; then
-        local list_short="$GOLEMS_LIST"
-        [ ${#list_short} -gt 25 ] && list_short="${list_short:0:22}..."
-        box_line_colored "  ${GREEN}✔${NC}  Golem 實體配置   ${GREEN}${GOLEMS_ACTIVE_COUNT} 個 (${list_short})${NC}"
+        box_line_colored "  ${GREEN}✔${NC}  Golem 實體配置   ${GREEN}${GOLEMS_ACTIVE_COUNT} 個已偵測${NC}"
     else
-        box_line_colored "  ${RED}✖${NC}  Golem 實體配置   ${RED}未偵測到有效 Bot Token${NC}"
-        all_pass=false
+        box_line_colored "  ${YELLOW}ℹ${NC}  Golem 實體配置   ${YELLOW}未偵測到 (可於系統啟動後透過 Dashboard 新增)${NC}"
     fi
 
     # 4. Core files

@@ -253,54 +253,7 @@ export default function DashboardPage() {
 
     const isBusy = isLoading;
 
-    // ── Onboarding: 沒有任何 Golem 時顯示引導介面 ──
-    if (!isLoadingGolems && !hasGolems) {
-        return (
-            <div className="flex-1 flex flex-col items-center justify-center p-8 bg-gray-950 text-white">
-                <div className="max-w-md w-full text-center animate-in fade-in slide-in-from-bottom-6 duration-700">
-                    {/* Icon */}
-                    <div className="inline-flex items-center justify-center p-5 bg-indigo-950/50 border border-indigo-800/40 rounded-3xl mb-8 shadow-[0_0_50px_-10px_theme(colors.indigo.900)]">
-                        <BrainCircuit className="w-12 h-12 text-indigo-400" />
-                    </div>
-
-                    <h1 className="text-4xl font-bold mb-4 bg-clip-text text-transparent bg-gradient-to-br from-white to-indigo-400">
-                        歡迎使用 Golem
-                    </h1>
-                    <p className="text-gray-400 text-lg leading-relaxed mb-10">
-                        你的神經網路艦隊尚未部署。<br />
-                        建立第一個 Golem 實體，賦予它身分、技能與任務。
-                    </p>
-
-                    {/* Feature Highlights */}
-                    <div className="grid grid-cols-3 gap-4 mb-10 text-sm">
-                        {[
-                            { icon: Zap, label: "快速建立", desc: "填寫 Token 即可啟動" },
-                            { icon: BrainCircuit, label: "長期記憶", desc: "向量記憶持久化" },
-                            { icon: UserPlus, label: "多實體", desc: "管理多台 Bot" },
-                        ].map(({ icon: Icon, label, desc }) => (
-                            <div key={label} className="bg-gray-900/50 border border-gray-800 rounded-xl p-3 flex flex-col items-center gap-1.5">
-                                <Icon className="w-5 h-5 text-indigo-400" />
-                                <span className="text-white font-medium text-xs">{label}</span>
-                                <span className="text-gray-500 text-[10px]">{desc}</span>
-                            </div>
-                        ))}
-                    </div>
-
-                    <Link href="/dashboard/agents/create">
-                        <Button className="w-full h-14 text-base font-bold bg-gradient-to-r from-indigo-600 to-blue-500 hover:from-indigo-500 hover:to-blue-400 border-none shadow-xl shadow-indigo-900/20 rounded-2xl group transition-all hover:scale-[1.02] active:scale-95">
-                            <UserPlus className="w-5 h-5 mr-2 group-hover:animate-pulse" />
-                            建立第一個 Golem 實體
-                        </Button>
-                    </Link>
-
-                    <p className="text-xs text-gray-600 mt-4">
-                        或直接修改 <code className="text-gray-500 font-mono">golems.json</code> 並重啟系統
-                    </p>
-                </div>
-            </div>
-        );
-    }
-
+    // ── 主頁面開始 ──
     return (
         <div className="p-6 h-full flex flex-col space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -338,6 +291,26 @@ export default function DashboardPage() {
                                 <span className="text-green-400">Connected</span>
                             </div>
                         </div>
+
+                        {/* Inline Onboarding Card */}
+                        {!isLoadingGolems && !hasGolems && (
+                            <div className="mt-6 p-4 bg-indigo-950/30 border border-indigo-900/50 rounded-xl">
+                                <div className="flex items-center gap-2 mb-2">
+                                    <BrainCircuit className="w-4 h-4 text-indigo-400" />
+                                    <span className="text-sm font-semibold text-indigo-300">系統就緒</span>
+                                </div>
+                                <p className="text-xs text-gray-400 mb-3 leading-relaxed">
+                                    尚未部署任何 Golem。<br />
+                                    點擊下方按鈕建立你的第一個 Golem 實體。
+                                </p>
+                                <Link href="/dashboard/agents/create">
+                                    <Button className="w-full h-10 text-xs font-bold bg-indigo-600/80 hover:bg-indigo-500 border-none rounded-lg transition-colors group">
+                                        <UserPlus className="w-3.5 h-3.5 mr-1.5" />
+                                        新增 Golem
+                                    </Button>
+                                </Link>
+                            </div>
+                        )}
                     </div>
 
                     {/* 操控區 */}

@@ -27,9 +27,18 @@ class ChatLogManager {
             era: path.join(this.logDir, 'era'),               // Tier 4: 紀元里程碑
         };
 
+        this._isInitialized = false;
+    }
+
+    /**
+     * 🚀 延遲初始化：確保目錄存在並處理遷移
+     */
+    async init() {
+        if (this._isInitialized) return;
         this._ensureDirectories();
         this._migrateExistingDailySummaries();
         this.cleanup();
+        this._isInitialized = true;
     }
 
     // ============================================================

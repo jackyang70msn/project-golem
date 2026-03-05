@@ -10,10 +10,6 @@ show_header() {
     box_line_colored "  Node.js: $STATUS_NODE   npm: ${DIM}v$NPM_VER${NC}               "
     box_line_colored "  Config:  $STATUS_ENV   Mode:      ${BOLD}${CYAN}$CURRENT_GOLEM_MODE${NC}           "
     box_line_colored "  Docker: $STATUS_DOCKER  Dashboard: $STATUS_DASH            "
-    if [ -n "$GOLEMS_LIST" ]; then
-        box_sep
-        box_line_colored "  ${DIM}現有實體: $GOLEMS_LIST${NC}"
-    fi
     box_bottom; echo ""
 }
 
@@ -28,8 +24,6 @@ show_menu() {
     echo -e "  ${CYAN}───────────────────────────────────────────────${NC}"
     echo -e "   ${BOLD}[1]${NC}  📦 完整安裝"
     echo -e "   ${BOLD}[I]${NC}  🧹 完全初始化"
-    echo -e "   ${BOLD}[2]${NC}  ⚙️  環境配置精靈 (.env / API Keys)"
-    echo -e "   ${BOLD}[G]${NC}  🌐 Golem 管理 (透過 Web Dashboard)"
     echo -e "   ${BOLD}[3]${NC}  📥 安裝依賴"
     echo -e "   ${BOLD}[4]${NC}  🌐 重建 Dashboard"
     echo -e "\n  ${BOLD}${YELLOW}🐳 Docker 容器化${NC}"
@@ -52,8 +46,6 @@ show_menu() {
         0) launch_system ;;
         1) run_full_install ;;
         [Ii]) run_clean_init; show_menu ;;
-        2) step_check_env; config_wizard; show_menu ;;
-        [Gg]) golems_wizard; show_menu ;;
         3) step_install_core; step_install_dashboard; show_menu ;;
         4) step_install_dashboard; show_menu ;;
         5) launch_docker; show_menu ;;

@@ -99,7 +99,37 @@ class WebServer {
         });
 
         // Ensure /dashboard and sub-routes are handled for SPA
-        const dashboardRoutes = ['/dashboard', '/dashboard/terminal', '/dashboard/agents', '/dashboard/office'];
+        const dashboardRoutes = [
+            '/dashboard',
+            '/dashboard/terminal',
+            '/dashboard/agents',
+            '/dashboard/office',
+            '/dashboard/system-setup'
+        ];
+
+        // 🎯 V9.0.7 解耦：自動導引系統設定 (Auto-Setup)
+        // 在進入 Dashboard 核心頁面之前，檢查系統配置狀態
+        this.app.get(/\/dashboard.*/, (req, res, next) => {
+            const normalizedPath = req.path.replace(/\/$/, "");
+            // 排除設定頁面本身與 API 請求，避免無限重定向
+            if (normalizedPath === '/dashboard/system-setup' || req.path.startsWith('/api/')) {
+                return next();
+            }
+
+            try {
+                const { CONFIG, isPlaceholder } = require('../src/config/index');
+                const isConfigured = CONFIG.API_KEYS.length > 0 && !CONFIG.API_KEYS.some(isPlaceholder);
+
+                if (!isConfigured) {
+                    console.log(`🚩 [WebServer] System not configured. Redirecting ${req.path} to /dashboard/system-setup`);
+                    return res.redirect('/dashboard/system-setup');
+                }
+            } catch (e) {
+                console.error('Failed to check config during redirect:', e.message);
+            }
+            next();
+        });
+
         dashboardRoutes.forEach(route => {
             this.app.get(route, (req, res) => {
                 const fileName = route === '/dashboard' ? 'dashboard.html' : `${route.replace(/^\//, '')}.html`;
@@ -498,28 +528,42 @@ class WebServer {
         });
 
         this.app.get('/api/golems', (req, res) => {
-            const golemsData = Array.from(this.contexts.entries()).map(([id, context]) => {
-                const status = (context.brain && context.brain.status) || 'running';
-                return { id, status };
-            });
-
-            // If no live contexts, supplement with golems.json entries as 'not_started'
-            if (golemsData.length === 0) {
-                try {
-                    const golemsPath = path.resolve(process.cwd(), 'golems.json');
-                    if (fs.existsSync(golemsPath)) {
-                        const stored = JSON.parse(fs.readFileSync(golemsPath, 'utf8'));
-                        if (Array.isArray(stored) && stored.length > 0) {
-                            const fromFile = stored.map(g => ({ id: g.id, status: 'not_started' }));
-                            return res.json({ golems: fromFile });
-                        }
-                    }
-                } catch (e) {
-                    console.warn('[WebServer] Failed to read golems.json for fallback:', e.message);
+            try {
+                // 1. 獲取現有的 golems.json 配置
+                const golemsPath = path.resolve(process.cwd(), 'golems.json');
+                let allConfigs = [];
+                if (fs.existsSync(golemsPath)) {
+                    allConfigs = JSON.parse(fs.readFileSync(golemsPath, 'utf8'));
                 }
-            }
 
-            return res.json({ golems: golemsData });
+                // 2. 獲取當前記憶體中的 contexts
+                const activeIds = Array.from(this.contexts.keys());
+
+                // 3. 合併狀態
+                const golemsData = allConfigs.map(config => {
+                    const id = config.id;
+                    const context = this.contexts.get(id);
+                    let status = 'not_started';
+
+                    if (context && context.brain) {
+                        status = context.brain.status || 'running';
+                    }
+
+                    return { id, status };
+                });
+
+                // 4. 對於不在 golems.json 但在 contexts 中的 (可能是動態建立未存檔的)，也補上去
+                this.contexts.forEach((ctx, id) => {
+                    if (!golemsData.find(g => g.id === id)) {
+                        golemsData.push({ id, status: ctx.brain.status || 'running' });
+                    }
+                });
+
+                return res.json({ golems: golemsData });
+            } catch (e) {
+                console.error('[WebServer] Failed to fetch golems list:', e);
+                return res.status(500).json({ error: e.message });
+            }
         });
 
         // ─── System Status ────────────────────────────────────────────────────────────────────
@@ -529,12 +573,21 @@ class WebServer {
                 let configuredCount = 0;
                 const golemsPath = path.resolve(process.cwd(), 'golems.json');
                 if (fs.existsSync(golemsPath)) {
-                    const stored = JSON.parse(fs.readFileSync(golemsPath, 'utf8'));
-                    if (Array.isArray(stored)) configuredCount = stored.length;
+                    const content = fs.readFileSync(golemsPath, 'utf8');
+                    if (content.trim()) {
+                        const stored = JSON.parse(content);
+                        if (Array.isArray(stored)) configuredCount = stored.length;
+                    }
                 }
-                const envPath = path.resolve(process.cwd(), '.env');
-                const envVars = readEnvFile(envPath);
-                const isSystemConfigured = !!(envVars.GEMINI_API_KEYS && envVars.GEMINI_API_KEYS.trim());
+
+                const EnvManager = require('../src/utils/EnvManager');
+                const envVars = EnvManager.readEnv();
+
+                // 系統是否已設定：檢查是否有有效的 API Keys 且非預設預留字串
+                const isSystemConfigured = !!(envVars.GEMINI_API_KEYS &&
+                    envVars.GEMINI_API_KEYS.trim() &&
+                    !envVars.GEMINI_API_KEYS.includes('你的'));
+
                 return res.json({
                     hasGolems: liveCount > 0 || configuredCount > 0,
                     liveCount,
@@ -547,18 +600,15 @@ class WebServer {
             }
         });
 
-        // ─── System Config (read) ───────────────────────────────────────────────────────────────
+
+        // ─── System Config ───────────────────────────────────────────────────────────────────
         this.app.get('/api/system/config', (req, res) => {
             try {
-                const envPath = path.resolve(process.cwd(), '.env');
-                const env = readEnvFile(envPath);
-                const rawKeys = env.GEMINI_API_KEYS || '';
+                const EnvManager = require('../src/utils/EnvManager');
+                const envVars = EnvManager.readEnv();
                 return res.json({
-                    geminiApiKeys: maskValue(rawKeys),
-                    geminiApiKeysSet: !!rawKeys.trim(),
-                    userDataDir: env.USER_DATA_DIR || './golem_memory',
-                    golemMemoryMode: env.GOLEM_MEMORY_MODE || 'browser',
-                    isConfigured: !!(rawKeys && rawKeys.trim()),
+                    userDataDir: envVars.USER_DATA_DIR || './golem_memory',
+                    golemMemoryMode: envVars.GOLEM_MEMORY_MODE || 'browser'
                 });
             } catch (e) {
                 console.error('[WebServer] Failed to get system config:', e);
@@ -566,34 +616,32 @@ class WebServer {
             }
         });
 
-        // ─── System Config (write) ───────────────────────────────────────────────────────────────
         this.app.post('/api/system/config', (req, res) => {
             try {
                 const { geminiApiKeys, userDataDir, golemMemoryMode } = req.body;
-                if (!geminiApiKeys || !geminiApiKeys.trim()) {
-                    return res.status(400).json({ error: 'GEMINI_API_KEYS 不能為空' });
+                const EnvManager = require('../src/utils/EnvManager');
+                const ConfigManager = require('../src/config/index');
+
+                const updates = {};
+                if (geminiApiKeys) updates.GEMINI_API_KEYS = geminiApiKeys;
+                if (userDataDir) updates.USER_DATA_DIR = userDataDir;
+                if (golemMemoryMode) updates.GOLEM_MEMORY_MODE = golemMemoryMode;
+
+                if (Object.keys(updates).length > 0) {
+                    EnvManager.updateEnv(updates);
+                    console.log('📝 [System] System configuration updated via web dashboard.');
+
+                    // 觸發熱重載
+                    ConfigManager.reloadConfig();
+
+                    return res.json({ success: true, message: 'Configuration saved and reloaded.' });
                 }
-                const envPath = path.resolve(process.cwd(), '.env');
-                const updates = {
-                    GEMINI_API_KEYS: geminiApiKeys.trim(),
-                };
-                if (userDataDir) updates.USER_DATA_DIR = userDataDir.trim();
-                if (golemMemoryMode) updates.GOLEM_MEMORY_MODE = golemMemoryMode.trim();
-
-                updateEnvFile(envPath, updates);
-
-                // Also update process.env for immediate effect
-                process.env.GEMINI_API_KEYS = geminiApiKeys.trim();
-                if (userDataDir) process.env.USER_DATA_DIR = userDataDir.trim();
-                if (golemMemoryMode) process.env.GOLEM_MEMORY_MODE = golemMemoryMode.trim();
-
-                return res.json({ success: true });
+                return res.json({ success: false, message: 'No updates provided.' });
             } catch (e) {
-                console.error('[WebServer] Failed to write system config:', e);
+                console.error('[WebServer] Failed to update system config:', e);
                 return res.status(500).json({ error: e.message });
             }
         });
-
 
         // ─── Create New Golem ────────────────────────────────────────────
         this.app.post('/api/golems/create', async (req, res) => {
@@ -632,21 +680,76 @@ class WebServer {
                 fs.writeFileSync(golemsPath, JSON.stringify(existingGolems, null, 4), 'utf8');
                 console.log(`📝 [WebServer] New Golem config saved: ${id}`);
 
-                // Dynamically start the Golem if factory is available
+                // Dynamically start the Golem instance (deferred init)
                 if (typeof this.golemFactory === 'function') {
                     try {
-                        await this.golemFactory(newGolemConfig);
-                        console.log(`🚀 [WebServer] Golem [${id}] dynamically started via factory.`);
+                        const instance = await this.golemFactory(newGolemConfig);
+                        console.log(`🚀 [WebServer] Golem [${id}] instance created (Ready for setup).`);
                     } catch (factoryErr) {
                         console.error(`❌ [WebServer] Golem factory failed for [${id}]:`, factoryErr.message);
-                        // We still return success since the config was saved — restart will pick it up
-                        return res.json({ success: true, id, started: false, message: 'Config saved. Golem will start on next system restart.' });
                     }
                 }
 
-                return res.json({ success: true, id, started: typeof this.golemFactory === 'function' });
+                return res.json({ success: true, id, message: `Golem '${id}' created. Please complete persona setup to start.` });
             } catch (e) {
                 console.error('[WebServer] Failed to create Golem:', e);
+                return res.status(500).json({ error: e.message });
+            }
+        });
+
+        // ─── Start Golem Legally ──────────────────────────────────────────
+        this.app.post('/api/golems/start', async (req, res) => {
+            try {
+                const { id } = req.body;
+                if (!id) return res.status(400).json({ error: 'Missing Golem ID' });
+
+                let instance = this.contexts.get(id);
+
+                // 🎯 V9.0.7 解耦：若實體尚未「孕育」，則先執行懶加載
+                if (!instance) {
+                    if (typeof this.golemFactory === 'function') {
+                        console.log(`🧬 [WebServer] Golem '${id}' not in memory. Triggering lazy gestation...`);
+                        const golemsPath = path.resolve(process.cwd(), 'golems.json');
+                        const configs = JSON.parse(fs.readFileSync(golemsPath, 'utf8'));
+                        const targetConfig = configs.find(g => g.id === id);
+
+                        if (!targetConfig) return res.status(404).json({ error: `Config for '${id}' not found in golems.json` });
+
+                        await this.golemFactory(targetConfig);
+                        instance = this.contexts.get(id);
+                    }
+
+                    if (!instance) return res.status(404).json({ error: `Golem '${id}' failed to gestate.` });
+                }
+
+                if (instance.brain.status === 'running') {
+                    return res.json({ success: true, message: 'Golem is already running.' });
+                }
+
+                console.log(`🎬 [WebServer] Explicitly starting Golem: ${id}`);
+
+                // 1. 執行大腦初始化 (啟動瀏覽器等)
+                await instance.brain.init();
+                instance.brain.status = 'running';
+
+                // 2. 啟動 Telegram 輪詢
+                if (instance.brain.tgBot && typeof instance.brain.tgBot.startPolling === 'function') {
+                    try {
+                        await instance.brain.tgBot.startPolling();
+                        console.log(`🤖 [Bot] ${id} Telegram polling started.`);
+                    } catch (botErr) {
+                        console.warn(`⚠️ [Bot] ${id} Polling failed:`, botErr.message);
+                    }
+                }
+
+                // 3. 啟動自主引擎
+                if (instance.autonomy && typeof instance.autonomy.start === 'function') {
+                    instance.autonomy.start();
+                }
+
+                return res.json({ success: true, message: `Golem '${id}' started successfully.` });
+            } catch (e) {
+                console.error('[WebServer] Failed to start Golem:', e);
                 return res.status(500).json({ error: e.message });
             }
         });
@@ -672,13 +775,28 @@ class WebServer {
                 // Update status and initialize
                 context.brain.status = 'running';
 
-                // Initialize asynchronously so we don't block the request
-                context.brain.init().catch(err => {
-                    console.error(`Failed to initialize Golem [${golemId}]:`, err);
-                    context.brain.status = 'error';
-                });
+                // Initialize and start polling
+                (async () => {
+                    try {
+                        await context.brain.init();
 
-                return res.json({ success: true, message: "Golem setup initiated" });
+                        // 🎯 V9.0.7 解耦：設定完成後啟動 Telegram 輪詢
+                        if (context.brain.tgBot && typeof context.brain.tgBot.startPolling === 'function') {
+                            await context.brain.tgBot.startPolling();
+                            console.log(`🤖 [Bot] ${golemId} started polling after setup.`);
+                        }
+
+                        // 啟動自主引擎
+                        if (context.autonomy && typeof context.autonomy.start === 'function') {
+                            context.autonomy.start();
+                        }
+                    } catch (err) {
+                        console.error(`Failed to initialize Golem [${golemId}] after setup:`, err);
+                        context.brain.status = 'error';
+                    }
+                })();
+
+                return res.json({ success: true, message: "Golem setup initiated and starting..." });
             } catch (e) {
                 console.error("Setup error:", e);
                 return res.status(500).json({ error: e.message });

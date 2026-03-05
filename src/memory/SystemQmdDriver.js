@@ -7,10 +7,10 @@ const { CONFIG, KNOWLEDGE_BASE_DIR } = require('../config');
 class SystemQmdDriver {
     constructor() {
         this.baseDir = KNOWLEDGE_BASE_DIR;
-        if (!fs.existsSync(this.baseDir)) fs.mkdirSync(this.baseDir, { recursive: true });
         this.qmdCmd = 'qmd';
     }
     async init() {
+        if (!fs.existsSync(this.baseDir)) fs.mkdirSync(this.baseDir, { recursive: true });
         console.log("🔍 [Memory:Qmd] 啟動引擎探測...");
         try {
             const checkCmd = (c) => {

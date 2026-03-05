@@ -77,6 +77,9 @@ class GolemBrain {
             isNewSession = true;
         }
 
+        // 2.5 初始化日誌管理員 (建立目錄)
+        await this.chatLogManager.init();
+
         // 3. 初始化記憶引擎 (含降級策略)
         await this._initMemoryDriver();
 
@@ -269,7 +272,10 @@ class GolemBrain {
      * @param {Object} entry - 日誌紀錄
      */
     _appendChatLog(entry) {
-        this.chatLogManager.append(entry);
+        // 確保在寫入前已初始化 (防呆)
+        this.chatLogManager.init().then(() => {
+            this.chatLogManager.append(entry);
+        });
     }
 
     // ─── Private Methods ─────────────────────────────────────

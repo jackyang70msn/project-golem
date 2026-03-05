@@ -30,7 +30,6 @@ class SystemLogger {
         };
 
         this.initialized = true;
-        console.log(`📝 [SystemLogger] 系統核心日誌持久化已啟動: ${this.logFile}`);
     }
 
     static _ensureDirectory(dir) {

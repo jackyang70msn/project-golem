@@ -12,21 +12,24 @@ class SkillManager {
         this.userDir = path.join(this.baseDir, 'user');
         this.coreDir = path.join(this.baseDir, 'core');
 
-        // 確保目錄結構存在
-        [this.baseDir, this.userDir, this.coreDir].forEach(dir => {
-            if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-        });
-
         this.skills = new Map();
-        this.refresh(); // 初始化時載入
+        // 🎯 V9.0.7 解耦：不再於建構子中主動掃描，改為懶加載
     }
 
     /**
      * 熱重載所有技能 (清除 require 快取)
      */
     refresh() {
+        // 確保目錄結構在需要加載時才建立
+        [this.baseDir, this.userDir, this.coreDir].forEach(dir => {
+            if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+        });
+
         this.skills.clear();
-        console.log("🔄 Skill Manager: Reloading skills...");
+        const isDashboard = process.argv.includes('dashboard');
+        if (!isDashboard) {
+            console.log("🔄 Skill Manager: Reloading skills...");
+        }
 
         const loadFromDir = (dir, type) => {
             if (!fs.existsSync(dir)) return;
