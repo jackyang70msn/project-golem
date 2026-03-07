@@ -146,6 +146,7 @@ class AutonomyManager {
         const waitMs = randomHours * 3600000;
         const nextWakeTime = new Date(Date.now() + waitMs);
         const hour = nextWakeTime.getHours();
+        let finalWait = waitMs;
         const sleepStart = CONFIG.SLEEP_START !== undefined ? CONFIG.SLEEP_START : 1;
         const sleepEnd = CONFIG.SLEEP_END !== undefined ? CONFIG.SLEEP_END : 7;
 
