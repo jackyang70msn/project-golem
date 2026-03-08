@@ -657,7 +657,7 @@ export default function SettingsPage() {
                                     <h4 className="text-sm font-semibold text-red-500 flex items-center gap-2 mb-3">
                                         <AlertTriangle className="w-4 h-4" /> 系統阻擋 (危險)
                                     </h4>
-                                    <div className="flex-1 overflow-y-auto space-y-2 pr-2 custom-scrollbar max-h-64">
+                                    <div className="flex-1 overflow-y-auto space-y-2 pr-2 custom-scrollbar h-[22rem]">
                                         {['rm -rf /', 'rd /s /q', '> /dev/sd', ':(){:|:&};:', 'mkfs', 'Format-Volume', 'dd if=', 'chmod -x'].map((cmd, idx) => (
                                             <div key={`danger-${idx}`} className="px-3 py-2 bg-red-950/50 border border-red-900/60 text-red-300 text-xs font-mono rounded cursor-not-allowed opacity-80">
                                                 {cmd}
@@ -674,7 +674,7 @@ export default function SettingsPage() {
                                         🛡️ 系統安全庫 (預設)
                                     </h4>
                                     <p className="text-[10px] text-gray-500 mb-3">系統內建的安全指令，必須拖出至允許清單才會免審批。</p>
-                                    <div className="flex-1 overflow-y-auto space-y-2 pr-2 custom-scrollbar min-h-[16rem]">
+                                    <div className="flex-1 overflow-y-auto space-y-2 pr-2 custom-scrollbar h-[22rem]">
                                         {['dir', 'pwd', 'date', 'echo', 'cat', 'grep', 'find', 'whoami', 'tail', 'head', 'df', 'free', 'Get-ChildItem', 'Select-String', 'golem-check']
                                             .filter(cmd => !(config.env.COMMAND_WHITELIST || "").split(',').map(s => s.trim()).includes(cmd))
                                             .map((cmd, idx) => (
@@ -727,7 +727,7 @@ export default function SettingsPage() {
                                     <h4 className="text-sm font-semibold text-emerald-400 flex items-center gap-2 mb-3">
                                         <CheckCircle2 className="w-4 h-4" /> 允許清單 (免審批)
                                     </h4>
-                                    <div className="flex-1 overflow-y-auto space-y-2 pr-2 custom-scrollbar min-h-[16rem]">
+                                    <div className="flex-1 overflow-y-auto space-y-2 pr-2 custom-scrollbar h-[22rem]">
                                         {/* User Whitelist */}
                                         <div className="text-xs text-emerald-600/80 mb-2 mt-2 font-medium">免審批生效中</div>
                                         {(config.env.COMMAND_WHITELIST || "")
@@ -822,7 +822,7 @@ export default function SettingsPage() {
                                             type="text"
                                             id="newCommandInput"
                                             placeholder="新增指令 (如 docker)"
-                                            className="flex-1 bg-gray-900 border border-gray-700 focus:border-blue-500 rounded px-2 py-1.5 text-xs text-gray-200 font-mono"
+                                            className="flex-1 min-w-0 bg-gray-900 border border-gray-700 focus:border-blue-500 rounded px-2 py-1.5 text-xs text-gray-200 font-mono"
                                             onKeyDown={(e) => {
                                                 if (e.key === 'Enter') {
                                                     const val = e.currentTarget.value.trim();
@@ -850,13 +850,13 @@ export default function SettingsPage() {
                                                     }
                                                 }
                                             }}
-                                            className="bg-blue-600/20 hover:bg-blue-600/40 text-blue-400 border border-blue-500/50 rounded px-3 py-1.5 text-xs font-medium transition-colors"
+                                            className="flex-shrink-0 whitespace-nowrap bg-blue-600/20 hover:bg-blue-600/40 text-blue-400 border border-blue-500/50 rounded px-3 py-1.5 text-xs font-medium transition-colors"
                                         >
                                             新增
                                         </button>
                                     </div>
 
-                                    <div className="flex-1 overflow-y-auto space-y-2 pr-2 custom-scrollbar min-h-[14rem]">
+                                    <div className="flex-1 overflow-y-auto space-y-2 pr-2 custom-scrollbar h-[19rem]">
                                         {(config.env.CUSTOM_COMMANDS || "")
                                             .split(',')
                                             .map(s => s.trim())
