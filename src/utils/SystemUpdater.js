@@ -13,9 +13,48 @@ class SystemUpdater {
         }
 
         const isGit = fs.existsSync(path.join(rootDir, '.git'));
+        let gitInfo = null;
+
+        if (isGit) {
+            try {
+                const util = require('util');
+                const exec = util.promisify(require('child_process').exec);
+                // Fetch latest info from remote without altering working directory
+                await exec('git fetch', { cwd: rootDir });
+                const { stdout: branchOut } = await exec('git rev-parse --abbrev-ref HEAD', { cwd: rootDir });
+                const currentBranch = branchOut.trim();
+
+                const { stdout: currentCommitOut } = await exec('git log -1 --format="%h - %s (%cr)"', { cwd: rootDir });
+                const currentCommit = currentCommitOut.trim();
+
+                let latestCommit = 'N/A';
+                let behindCount = 0;
+                try {
+                    const { stdout: latestCommitOut } = await exec(`git log origin/${currentBranch} -1 --format="%h - %s (%cr)"`, { cwd: rootDir });
+                    latestCommit = latestCommitOut.trim();
+
+                    const { stdout: behindOut } = await exec(`git rev-list HEAD..origin/${currentBranch} --count`, { cwd: rootDir });
+                    behindCount = parseInt(behindOut.trim(), 10) || 0;
+                } catch (err) {
+                    // Branch might not exist on remote
+                    latestCommit = '無法取得遠端資訊';
+                }
+
+                gitInfo = {
+                    currentBranch,
+                    currentCommit,
+                    latestCommit,
+                    behindCount
+                };
+            } catch (e) {
+                console.error("[SystemUpdater] Failed to get git info", e);
+            }
+        }
+
         return {
             currentVersion,
-            installMode: isGit ? 'git' : 'zip'
+            installMode: isGit ? 'git' : 'zip',
+            gitInfo
         };
     }
 

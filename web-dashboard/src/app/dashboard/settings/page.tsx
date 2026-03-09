@@ -184,7 +184,7 @@ const SettingField = ({
 };
 
 const SystemUpdateSection = () => {
-    const [updateInfo, setUpdateInfo] = useState<{ currentVersion: string, installMode: string } | null>(null);
+    const [updateInfo, setUpdateInfo] = useState<{ currentVersion: string, installMode: string, gitInfo?: { currentBranch: string, currentCommit: string, latestCommit: string, behindCount: number } } | null>(null);
     const [showModal, setShowModal] = useState(false);
     const [isUpdating, setIsUpdating] = useState(false);
     const [progress, setProgress] = useState(0);
@@ -241,7 +241,28 @@ const SystemUpdateSection = () => {
         try {
             await fetch("/api/system/restart", { method: "POST" });
             setStatusText("重新啟動指令已發送... 等待系統恢復中！");
-            setTimeout(() => { window.location.reload(); }, 3000);
+
+            let retries = 0;
+            const maxRetries = 40;
+            const pollInterval = setInterval(async () => {
+                retries++;
+                try {
+                    const checkRes = await fetch("/api/system/status");
+                    if (checkRes.ok) {
+                        clearInterval(pollInterval);
+                        setStatusText("重新啟動完成！頁面即將重新載入...");
+                        setTimeout(() => { window.location.reload(); }, 1000);
+                    }
+                } catch (err) {
+                    // Server is offline
+                }
+
+                if (retries >= maxRetries) {
+                    clearInterval(pollInterval);
+                    setStatusText("重啟超時。若您未配置自動重啟 (PM2/Nodemon)，請手動至終端機啟動伺服器。");
+                }
+            }, 1000);
+
         } catch (e) {
             alert("重啟請求發送失敗。");
         }
@@ -284,6 +305,33 @@ const SystemUpdateSection = () => {
                                 <p className="text-sm text-gray-300 text-center">
                                     此動作將會從 GitHub 下載最新程式碼並進行覆寫。過程可能需要幾分鐘。
                                 </p>
+
+                                {updateInfo.installMode === 'git' && updateInfo.gitInfo && (
+                                    <div className="bg-gray-950 p-4 rounded-lg border border-gray-800 text-sm space-y-2">
+                                        <div className="flex items-center gap-2 text-indigo-400 font-semibold mb-2">
+                                            <Activity className="w-4 h-4" /> Git 版本差異分析
+                                        </div>
+                                        <div className="flex justify-between">
+                                            <span className="text-gray-500">當前分支:</span>
+                                            <span className="text-gray-300 bg-gray-800 px-1.5 rounded">{updateInfo.gitInfo.currentBranch}</span>
+                                        </div>
+                                        <div className="flex flex-col gap-1">
+                                            <span className="text-gray-500">當前版本 (Current):</span>
+                                            <span className="text-gray-400 font-mono text-xs">{updateInfo.gitInfo.currentCommit}</span>
+                                        </div>
+                                        <div className="flex flex-col gap-1">
+                                            <span className="text-gray-500">遠端最新 (Latest):</span>
+                                            <span className="text-emerald-400/90 font-mono text-xs">{updateInfo.gitInfo.latestCommit}</span>
+                                        </div>
+                                        <div className="pt-2 border-t border-gray-800 mt-2">
+                                            {updateInfo.gitInfo.behindCount > 0 ? (
+                                                <span className="text-amber-400 font-medium">⚠️ 您的系統落後遠端 {updateInfo.gitInfo.behindCount} 個更新 (Commits)。建議進行更新。</span>
+                                            ) : (
+                                                <span className="text-emerald-400 font-medium">✅ 您目前已經是最新版本，無需更新。</span>
+                                            )}
+                                        </div>
+                                    </div>
+                                )}
 
                                 <div className="space-y-3 bg-black/30 p-4 rounded-lg border border-gray-800">
                                     <label className="flex items-start gap-3 cursor-pointer group">
