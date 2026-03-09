@@ -831,6 +831,48 @@ class WebServer {
         });
 
         // ─── Create New Golem ────────────────────────────────────────────
+        // ─── System Update ───────────────────────────────────────────────
+        this.app.get('/api/system/update/check', async (req, res) => {
+            try {
+                const SystemUpdater = require('../src/utils/SystemUpdater');
+                const info = await SystemUpdater.checkEnvironment();
+                return res.json(info);
+            } catch (e) {
+                console.error('[WebServer] Update check failed:', e);
+                return res.status(500).json({ error: e.message });
+            }
+        });
+
+        this.app.post('/api/system/update/execute', async (req, res) => {
+            try {
+                const { keepOldData = true, keepMemory = true } = req.body;
+                const SystemUpdater = require('../src/utils/SystemUpdater');
+
+                // Do not await, let it run in the background. SystemUpdater will broadcast via socket.io
+                SystemUpdater.update({ keepOldData, keepMemory }, this.io).catch(err => {
+                    console.error('[WebServer] Background update failed:', err);
+                });
+
+                return res.json({ success: true, message: "Update process started" });
+            } catch (e) {
+                console.error('[WebServer] Update execution failed:', e);
+                return res.status(500).json({ error: e.message });
+            }
+        });
+
+        this.app.post('/api/system/restart', (req, res) => {
+            try {
+                console.log("🔄 [System] Restart requested by user. Terminating process...");
+                res.json({ success: true, message: "Restarting system..." });
+                setTimeout(() => {
+                    process.exit(0);
+                }, 1000);
+            } catch (e) {
+                return res.status(500).json({ error: e.message });
+            }
+        });
+
+        // ─── Create New Golem ────────────────────────────────────────────
         this.app.post('/api/golems/create', async (req, res) => {
             try {
                 const {
