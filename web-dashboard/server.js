@@ -545,7 +545,29 @@ class WebServer {
                 const libPath = path.join(process.cwd(), 'src', 'skills', 'lib');
                 const filePath = path.join(libPath, `${safeId}.md`);
 
-                fs.writeFileSync(filePath, content, 'utf8');
+                let title = safeId;
+                // Remove BOM if present, then trim
+                let parsedContent = content.toString().replace(/^\uFEFF/, '').trim();
+
+                // Parse YAML frontmatter if present (allowing for any stray spaces before ---)
+                const fmMatch = parsedContent.match(/^\s*---\r?\n([\s\S]*?)\r?\n---\r?\n([\s\S]*)$/);
+                if (fmMatch) {
+                    const yaml = fmMatch[1];
+                    const nameMatch = yaml.match(/^name:\s*(.+)$/m);
+                    if (nameMatch) {
+                        title = nameMatch[1].replace(/^["']|["']$/g, '').trim();
+                    }
+                    parsedContent = fmMatch[2].trim();
+                } else {
+                    // Fallback to first heading
+                    const hMatch = parsedContent.match(/^#+\s+(.+)$/m);
+                    if (hMatch) title = hMatch[1].trim();
+                }
+
+                // Wrap with Golem standard tag
+                const finalContent = `【已載入技能：${title}】\n\n${parsedContent}`;
+
+                fs.writeFileSync(filePath, finalContent, 'utf8');
                 console.log(`✨ [WebServer] Marketplace skill installed: ${safeId}.md`);
 
                 const SkillIndexManager = require('../src/managers/SkillIndexManager');
