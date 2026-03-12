@@ -1,6 +1,7 @@
 #!/bin/bash
 
-# ─── Golem Configuration Status ───GOLEMS_ACTIVE_COUNT=0
+# ─── Golem Configuration Status ───
+GOLEMS_ACTIVE_COUNT=0
 GOLEMS_LIST=""
 GOLEMS_JSON_PATH="$SCRIPT_DIR/golems.json"
 INSTALLERS_DIR="$LIB_DIR/installers"
@@ -80,7 +81,7 @@ check_status() {
 
     # 執行多 Golem 檢查
     check_multi_golems
-    if [ "$GOLEMS_ACTIVE_COUNT" -gt 0 ]; then
+    if [ "${GOLEMS_ACTIVE_COUNT:-0}" -gt 0 ]; then
         STATUS_GOLEMS="${GREEN}✅ ${GOLEMS_ACTIVE_COUNT} 個實體${NC}"
     else
         STATUS_GOLEMS="${YELLOW}⚠️ 未配置${NC}"
