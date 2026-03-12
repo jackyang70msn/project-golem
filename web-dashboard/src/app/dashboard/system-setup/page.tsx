@@ -24,6 +24,7 @@ export default function SystemSetupPage() {
     const [isLoading, setIsLoading] = useState(false);
     const [isFetching, setIsFetching] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [showSuccessModal, setShowSuccessModal] = useState(false);
 
     // 載入現有設定
     useEffect(() => {
@@ -38,14 +39,21 @@ export default function SystemSetupPage() {
             .finally(() => setIsFetching(false));
     }, []);
 
+    const handleShutdown = async () => {
+        try {
+            await fetch("/api/system/shutdown", { method: "POST" });
+            // 嘗試關閉視窗（雖然瀏覽器通常不允許腳本關閉非腳本開啟的視窗，但作為提示）
+            window.close();
+            // 如果無法關閉視窗，則跳轉到一個提示頁面或顯示關閉成功的 UI
+            alert("系統正在關閉中，您可以安全地關閉此頁面，並回到終端機重新啟動。");
+        } catch (e) {
+            console.error("Shutdown failed:", e);
+        }
+    };
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setError(null);
-
-        // Gemini API Key 改為選填，移除強制檢查
-        // if (!geminiKeys.trim()) {
-        //     return setError("請填寫 Gemini API Keys");
-        // }
 
         setIsLoading(true);
         try {
@@ -63,8 +71,9 @@ export default function SystemSetupPage() {
             if (!res.ok || !data.success) {
                 throw new Error(data.error || "儲存失敗，請稍後再試");
             }
-            // 系統設定完成後，引導使用者建立第一個 Golem
-            window.location.href = "/dashboard/agents/create";
+            
+            // 系統設定完成後，顯示提示彈窗而非直接跳轉
+            setShowSuccessModal(true);
         } catch (err: any) {
             setError(err.message);
         } finally {
@@ -227,7 +236,7 @@ export default function SystemSetupPage() {
                             </span>
                         ) : (
                             <span className="flex items-center gap-2">
-                                完成設定，進入控制台
+                                {isSystemConfigured ? "更新系統設定" : "完成設定，進入控制台"}
                                 <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
                             </span>
                         )}
@@ -239,6 +248,43 @@ export default function SystemSetupPage() {
                     </p>
                 </form>
             </div>
+
+            {/* Success Modal */}
+            {showSuccessModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-300">
+                    <div className="bg-gray-900 border border-gray-800 rounded-3xl p-8 max-w-md w-full shadow-2xl animate-in zoom-in-95 duration-300">
+                        <div className="flex flex-col items-center text-center">
+                            <div className="w-16 h-16 bg-emerald-500/20 border border-emerald-500/30 rounded-full flex items-center justify-center mb-6">
+                                <CheckCircle2 className="w-8 h-8 text-emerald-400" />
+                            </div>
+                            <h2 className="text-2xl font-bold text-white mb-3">設定已儲存！</h2>
+                            <p className="text-gray-400 leading-relaxed mb-8">
+                                為了讓變更生效，建議您<strong>重新啟動 Dashboard</strong>。
+                                您可以選擇立即關閉所有服務，然後手動執行 <code>setup.sh</code> 重新啟動。
+                            </p>
+                            
+                            <div className="grid grid-cols-1 gap-3 w-full">
+                                <Button
+                                    variant="outline"
+                                    onClick={handleShutdown}
+                                    className="h-12 border-gray-800 hover:bg-red-500/10 hover:text-red-400 hover:border-red-500/30 transition-all rounded-xl"
+                                >
+                                    關閉所有服務並退出
+                                </Button>
+                                <Button
+                                    onClick={() => {
+                                        setShowSuccessModal(false);
+                                        window.location.href = "/dashboard/agents/create";
+                                    }}
+                                    className="h-12 bg-gray-800 hover:bg-gray-700 text-white border-none rounded-xl"
+                                >
+                                    稍後手動處理
+                                </Button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
