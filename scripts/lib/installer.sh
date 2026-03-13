@@ -302,17 +302,17 @@ run_full_install() {
     echo ""
     step_install_dashboard
 
-    # Step 6: Health check + Tests + Done
-    progress_bar 6 $total_steps "健康檢查, 測試 & 完成"
+    # Step 6: Health check & Verification
+    progress_bar 6 $total_steps "系統健康檢查 & 驗證"
     echo ""
     check_status
     run_health_check
     
-    echo -e "  🧪 正在運行核心單元測試與安全巡檢..."
-    if npx jest --passWithNoTests; then
-        ui_success "所有核心測試通過！地基穩固。"
+    echo -e "  🏥 正在執行系統環境最後驗證 (System Doctor)..."
+    if npm run doctor -- --quiet; then
+        ui_success "環境驗證通過！系統地基穩固。"
     else
-        ui_warn "部分測試未通過，請檢查您的環境設定。"
+        ui_warn "環境發現小狀況，請參考上方的診斷建議。"
     fi
 
     local elapsed; elapsed=$(timer_elapsed)
