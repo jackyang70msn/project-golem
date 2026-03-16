@@ -48,6 +48,9 @@ class GolemBrain {
             golemId: this.golemId,
             logDir: options.logDir || ConfigManager.LOG_BASE_DIR
         });
+
+        // ── Backend Selection ──
+        this.backend = ConfigManager.CONFIG.GOLEM_BACKEND || 'gemini';
     }
 
     // ─── Public API (向後相容) ─────────────────────────────
@@ -80,11 +83,14 @@ class GolemBrain {
             console.log(`🚀 [System] 正在建立瀏覽子頁面...`);
             const pages = await this.browser.pages();
             this.page = pages.length > 0 ? pages[0] : await this.browser.newPage();
-            console.log(`🚀 [System] 瀏覽器分頁已就緒，前往 Gemini APP...`);
-            await this.page.goto(URLS.GEMINI_APP, { waitUntil: 'networkidle2' });
-            console.log(`🚀 [System] Gemini 頁面載入完成 (Golem: ${this.golemId})`);
             isNewSession = true;
         }
+
+        const targetUrl = this.backend === 'perplexity' ? URLS.PERPLEXITY_APP : URLS.GEMINI_APP;
+        console.log(`📡 [Brain] 導航至目標頁面: ${targetUrl}`);
+        await this.page.goto(targetUrl, { waitUntil: 'networkidle2' });
+        console.log(`🚀 [System] ${this.backend === 'perplexity' ? 'Perplexity' : 'Gemini'} 頁面載入完成 (Golem: ${this.golemId})`);
+        // isNewSession is already set above if a new page was created.
 
         // 2.5 初始化日誌管理員 (建立目錄)
         await this.chatLogManager.init();
@@ -364,7 +370,7 @@ class GolemBrain {
             const personaData = personaManager.get(this.userDataDir);
             const personaSkills = personaData.skills || [];
             const { resolveEnabledSkills } = require('../skills/skillsConfig');
-            
+
             // 使用最新的 process.env.OPTIONAL_SKILLS
             const enabledSet = resolveEnabledSkills(process.env.OPTIONAL_SKILLS || '', personaSkills);
             await this.skillIndex.sync(Array.from(enabledSet));
@@ -382,10 +388,10 @@ class GolemBrain {
             return;
         }
 
-        // 5. 重新開啟 Gemini 視窗 (New Chat) 後再注入
-        console.log(`🔄 [Brain][${this.golemId}] 正在開啟新的 Gemini 對話視窗...`);
-        const { URLS } = require('./constants');
-        await this.page.goto(URLS.GEMINI_APP, { waitUntil: 'networkidle2' });
+        // 5. 重新開啟對話視窗 (New Chat) 後再注入
+        console.log(`🔄 [Brain][${this.golemId}] 正在開啟新的 ${this.backend === 'perplexity' ? 'Perplexity' : 'Gemini'} 對話視窗...`);
+        const targetUrl = this.backend === 'perplexity' ? URLS.PERPLEXITY_APP : URLS.GEMINI_APP;
+        await this.page.goto(targetUrl, { waitUntil: 'networkidle2' });
 
         await this._injectSystemPrompt(true);
         console.log(`✅ [Brain][${this.golemId}] 完整重啟流程執行完畢 (Config + Skill + Protocol)。`);
@@ -409,7 +415,7 @@ class GolemBrain {
         // 🚀 [第一階段] 發送底層系統協議 (不含歷史摘要)
         const compressedPrompt = ProtocolFormatter.compress(systemPrompt);
         await this.sendMessage(compressedPrompt, false); // ⚡ 改為 false：等待完整回應
-        console.log(`📡 [Brain] 階段一：底層協議注入完成。`);
+        console.log(`📡 [Brain] 階段一：底層協議注入完成 (${this.backend.toUpperCase()})。`);
 
         // 🧠 [第二階段] 金字塔式多層記憶注入
         if (this.chatLogManager) {
@@ -499,7 +505,7 @@ class GolemBrain {
         let isHealthy = true;
         try {
             if (!this.browser) return; // 尚未啟動不視為故障，由 sendMessage 的 init() 處理
-            
+
             // 1. 檢查連線狀態
             if (!this.browser.isConnected()) {
                 console.warn("📡 [Brain] 偵測到瀏覽器連線斷開，啟動自癒程序...");
@@ -523,7 +529,7 @@ class GolemBrain {
         if (!isHealthy) {
             console.warn("🩹 [Brain] 偵測到失效狀態，正在執行物理清理並重新初始化...");
             // 清理舊實體 (確保清理乾淨，防止殘留 Lock)
-            try { 
+            try {
                 if (this.browser) {
                     console.log("🧹 [Brain] 正在強制關閉舊瀏覽器...");
                     await Promise.race([
@@ -531,13 +537,13 @@ class GolemBrain {
                         new Promise((_, reject) => setTimeout(() => reject(new Error('CLOSE_TIMEOUT')), 5000))
                     ]).catch(e => console.warn(`⚠️ [Brain] 關閉舊瀏覽器超時或失敗: ${e.message}`));
                 }
-            } catch (e) {}
-            
+            } catch (e) { }
+
             this.browser = null;
             this.page = null;
             this.memoryPage = null;
             this.cdpSession = null;
-            
+
             console.log("🌱 [Brain] 準備執行全新初始化 (init)...");
             // 重新初始化 (forceReload = true)
             await this.init(true);

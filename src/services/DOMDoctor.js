@@ -11,9 +11,9 @@ class DOMDoctor {
         this.keyChain = new KeyChain();
         this.cacheFile = path.join(process.cwd(), 'golem_selectors.json');
         this.defaults = {
-            input: 'div[contenteditable="true"], rich-textarea > div, p[data-placeholder]',
-            send: 'button[aria-label*="Send"], button[aria-label*="傳送"], span[data-icon="send"]',
-            response: '.model-response-text, .message-content, .markdown, div[data-test-id="message-content"]'
+            input: 'textarea, div[contenteditable="true"], rich-textarea > div, p[data-placeholder], .ql-editor',
+            send: 'button[aria-label*="Send"], button[aria-label*="傳送"], button[aria-label*="Submit"], span[data-icon="send"], button.bg-primary',
+            response: '.model-response-text, .message-content, .markdown, div[data-test-id="message-content"], .prose'
         };
     }
     loadSelectors() {

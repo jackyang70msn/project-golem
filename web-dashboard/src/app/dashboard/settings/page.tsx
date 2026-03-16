@@ -669,6 +669,39 @@ export default function SettingsPage() {
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     {/* 左側：AI 大腦與控制權限 */}
                     <div className="space-y-6">
+                        {/* Section: AI Backend Selection */}
+                        <div className="bg-card border border-border rounded-xl p-5 shadow-sm">
+                            <h2 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
+                                🤖 AI 引擎選取 (AI Backend)
+                            </h2>
+                            <div className="flex flex-col mb-4">
+                                <label className="text-sm font-medium text-muted-foreground mb-1">
+                                    核心引擎 (Primary Engine)
+                                </label>
+                                <select
+                                    value={config.env.GOLEM_BACKEND || "gemini"}
+                                    onChange={(e) => {
+                                        handleChangeEnv("GOLEM_BACKEND", e.target.value);
+                                    }}
+                                    className="w-full bg-secondary/30 border border-border focus:border-primary rounded-lg px-3 py-2 text-sm text-foreground transition-colors"
+                                >
+                                    <option value="gemini">Web Gemini (自動化瀏覽器)</option>
+                                    <option value="perplexity">Web Perplexity (自動化瀏覽器)</option>
+                                </select>
+                                <p className="text-xs text-muted-foreground mt-1">
+                                    切換後需重啟系統生效。此模式使用自動化瀏覽器，不需 API Key。
+                                </p>
+                            </div>
+
+                            {config.env.GOLEM_BACKEND === 'perplexity' && (
+                                <div className="pt-4 border-t border-border mt-4">
+                                    <p className="text-xs text-muted-foreground italic">
+                                        ℹ️ Web Perplexity 模式下，請確保您已在自動化瀏覽器中登入 Perplexity 帳號以獲得最佳體驗。
+                                    </p>
+                                </div>
+                            )}
+                        </div>
+
                         {/* Section: Gemini Brain */}
                         <div className="bg-card border border-border rounded-xl p-5 shadow-sm">
                             <h2 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">

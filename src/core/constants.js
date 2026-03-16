@@ -23,6 +23,7 @@ const LIMITS = Object.freeze({
 /** @enum {string} Gemini 相關 URL */
 const URLS = Object.freeze({
     GEMINI_APP: 'https://gemini.google.com/app',
+    PERPLEXITY_APP: 'https://www.perplexity.ai/',
 });
 
 /** 瀏覽器啟動參數 */
