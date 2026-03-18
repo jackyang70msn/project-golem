@@ -996,7 +996,7 @@ export default function SettingsPage() {
                                         label="Agent Name"
                                         keyName="MOLTBOOK_AGENT_NAME"
                                         placeholder="Golem"
-                                        value={config.env.MOLTBOOK_AGENT_NAME || "Golem"}
+                                        value={config.env.MOLTBOOK_AGENT_NAME || ""}
                                         onChange={(val) => handleChangeEnv("MOLTBOOK_AGENT_NAME", val)}
                                     />
                                 </div>
@@ -1013,17 +1013,17 @@ export default function SettingsPage() {
                                 ⏳ 自動化與作息設定
                             </h2>
                             <div className="grid grid-cols-2 gap-4">
-                                <SettingField label="喚醒間隔 (最小)" keyName="GOLEM_AWAKE_INTERVAL_MIN" placeholder="10" desc="分鐘 (最小)" value={config.env.GOLEM_AWAKE_INTERVAL_MIN || "10"} onChange={(val) => handleChangeEnv("GOLEM_AWAKE_INTERVAL_MIN", val)} />
-                                <SettingField label="喚醒間隔 (最大)" keyName="GOLEM_AWAKE_INTERVAL_MAX" placeholder="60" desc="分鐘 (最大)" value={config.env.GOLEM_AWAKE_INTERVAL_MAX || "60"} onChange={(val) => handleChangeEnv("GOLEM_AWAKE_INTERVAL_MAX", val)} />
-                                <SettingField label="夜間休眠開始" keyName="GOLEM_SLEEP_START" placeholder="23:00" desc="格式: HH:mm (24小時制)" value={config.env.GOLEM_SLEEP_START || "23:00"} onChange={(val) => handleChangeEnv("GOLEM_SLEEP_START", val)} />
-                                <SettingField label="夜間休眠結束" keyName="GOLEM_SLEEP_END" placeholder="07:00" desc="格式: HH:mm (24小時制)" value={config.env.GOLEM_SLEEP_END || "07:00"} onChange={(val) => handleChangeEnv("GOLEM_SLEEP_END", val)} />
+                                <SettingField label="喚醒間隔 (最小)" keyName="GOLEM_AWAKE_INTERVAL_MIN" placeholder="10" desc="分鐘 (最小)" value={config.env.GOLEM_AWAKE_INTERVAL_MIN || ""} onChange={(val) => handleChangeEnv("GOLEM_AWAKE_INTERVAL_MIN", val)} />
+                                <SettingField label="喚醒間隔 (最大)" keyName="GOLEM_AWAKE_INTERVAL_MAX" placeholder="60" desc="分鐘 (最大)" value={config.env.GOLEM_AWAKE_INTERVAL_MAX || ""} onChange={(val) => handleChangeEnv("GOLEM_AWAKE_INTERVAL_MAX", val)} />
+                                <SettingField label="夜間休眠開始" keyName="GOLEM_SLEEP_START" placeholder="23:00" desc="格式: HH:mm (24小時制)" value={config.env.GOLEM_SLEEP_START || ""} onChange={(val) => handleChangeEnv("GOLEM_SLEEP_START", val)} />
+                                <SettingField label="夜間休眠結束" keyName="GOLEM_SLEEP_END" placeholder="07:00" desc="格式: HH:mm (24小時制)" value={config.env.GOLEM_SLEEP_END || ""} onChange={(val) => handleChangeEnv("GOLEM_SLEEP_END", val)} />
                             </div>
                             <div className="mt-4">
                                 <SettingField
                                     label="興趣標籤 (User Interests)"
                                     keyName="USER_INTERESTS"
                                     desc="用於自主搜尋與聊天，請使用半形逗號「,」分隔多個興趣項目。"
-                                    value={config.env.USER_INTERESTS || "AI, Coding, Technology"}
+                                    value={config.env.USER_INTERESTS || ""}
                                     onChange={(val) => handleChangeEnv("USER_INTERESTS", val)}
                                 />
                             </div>
@@ -1041,7 +1041,7 @@ export default function SettingsPage() {
                                     keyName="GOLEM_STRICT_SAFEGUARD"
                                     placeholder="false"
                                     desc="是否在 initial validation 階段就攔截 dangerousOps (如 rm -rf)。"
-                                    value={config.env.GOLEM_STRICT_SAFEGUARD || "false"}
+                                    value={config.env.GOLEM_STRICT_SAFEGUARD || ""}
                                     onChange={(val) => handleChangeEnv("GOLEM_STRICT_SAFEGUARD", val)}
                                 />
                         </div>
@@ -1219,11 +1219,11 @@ export default function SettingsPage() {
                                 </h2>
 
                                 <div className="space-y-4">
-                                    <SettingField label="測試模式" keyName="GOLEM_TEST_MODE" desc="設為 true 將在部分功能使用模擬數據" placeholder="false" value={config.env.GOLEM_TEST_MODE || "false"} onChange={(val) => handleChangeEnv("GOLEM_TEST_MODE", val)} />
-                                    <SettingField label="系統維護推播通知" keyName="ENABLE_LOG_NOTIFICATIONS" desc="是否在 Telegram/Discord 接收通知" placeholder="false" value={config.env.ENABLE_LOG_NOTIFICATIONS || "false"} onChange={(val) => handleChangeEnv("ENABLE_LOG_NOTIFICATIONS", val)} />
-                                    <SettingField label="日誌檢查間隔 (分)" keyName="ARCHIVE_CHECK_INTERVAL" placeholder="30" value={config.env.ARCHIVE_CHECK_INTERVAL || "30"} onChange={(val) => handleChangeEnv("ARCHIVE_CHECK_INTERVAL", val)} />
-                                    <SettingField label="資料暫存路徑" keyName="USER_DATA_DIR" placeholder="./.golem_data" value={config.env.USER_DATA_DIR || "./.golem_data"} onChange={(val) => handleChangeEnv("USER_DATA_DIR", val)} />
-                                    <SettingField label="OTA 升級節點" keyName="GITHUB_REPO" placeholder="Arvincreator/project-golem" value={config.env.GITHUB_REPO || "Arvincreator/project-golem"} onChange={(val) => handleChangeEnv("GITHUB_REPO", val)} />
+                                    <SettingField label="測試模式" keyName="GOLEM_TEST_MODE" desc="設為 true 將在部分功能使用模擬數據" placeholder="false" value={config.env.GOLEM_TEST_MODE || ""} onChange={(val) => handleChangeEnv("GOLEM_TEST_MODE", val)} />
+                                    <SettingField label="系統維護推播通知" keyName="ENABLE_LOG_NOTIFICATIONS" desc="是否在 Telegram/Discord 接收通知" placeholder="false" value={config.env.ENABLE_LOG_NOTIFICATIONS || ""} onChange={(val) => handleChangeEnv("ENABLE_LOG_NOTIFICATIONS", val)} />
+                                    <SettingField label="日誌檢查間隔 (分)" keyName="ARCHIVE_CHECK_INTERVAL" placeholder="30" value={config.env.ARCHIVE_CHECK_INTERVAL || ""} onChange={(val) => handleChangeEnv("ARCHIVE_CHECK_INTERVAL", val)} />
+                                    <SettingField label="資料暫存路徑" keyName="USER_DATA_DIR" placeholder="./.golem_data" value={config.env.USER_DATA_DIR || ""} onChange={(val) => handleChangeEnv("USER_DATA_DIR", val)} />
+                                    <SettingField label="OTA 升級節點" keyName="GITHUB_REPO" placeholder="Arvincreator/project-golem" value={config.env.GITHUB_REPO || ""} onChange={(val) => handleChangeEnv("GITHUB_REPO", val)} />
                                 </div>
 
                                 <div className="pt-4 border-t border-border">
@@ -1237,7 +1237,7 @@ export default function SettingsPage() {
                                             )}
                                         </span>
                                     </div>
-                                    <SettingField label="" keyName="ENABLE_SYSTEM_LOG" desc="設為 false 將完全不記錄 system.log" placeholder="false" value={config.env.ENABLE_SYSTEM_LOG || "false"} onChange={(val) => handleChangeEnv("ENABLE_SYSTEM_LOG", val)} />
+                                    <SettingField label="" keyName="ENABLE_SYSTEM_LOG" desc="設為 false 將完全不記錄 system.log" placeholder="false" value={config.env.ENABLE_SYSTEM_LOG || ""} onChange={(val) => handleChangeEnv("ENABLE_SYSTEM_LOG", val)} />
                                 </div>
                             </div>
 
