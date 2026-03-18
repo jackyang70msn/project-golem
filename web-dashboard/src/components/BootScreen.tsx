@@ -7,12 +7,43 @@ import { motion, AnimatePresence } from "framer-motion";
 export function BootScreen({ isBooting }: { isBooting: boolean }) {
     const [progress, setProgress] = useState(0);
     const [statusText, setStatusText] = useState("正在初始化系統核心...");
+    const [isVisible, setIsVisible] = useState(false);
+
+    // Sync isVisible with isBooting, but only if not already booting
+    useEffect(() => {
+        if (isBooting) {
+            setIsVisible(true);
+            setProgress(0);
+            setStatusText("正在初始化系統核心...");
+        }
+    }, [isBooting]);
 
     useEffect(() => {
-        if (!isBooting) {
-            setProgress(100);
-            return;
-        }
+        if (!isVisible) return;
+
+        // If backend finished booting but progress isn't 100, accelerate
+        const isAccelerating = !isBooting && progress < 100;
+        const intervalTime = isAccelerating ? 50 : 400;
+        const increment = isAccelerating ? 15 : 1.5;
+
+        const interval = setInterval(() => {
+            setProgress((prev) => {
+                if (prev >= 100) {
+                    clearInterval(interval);
+                    // Add a small delay after hitting 100% before hiding
+                    setTimeout(() => setIsVisible(false), 500);
+                    return 100;
+                }
+                const next = prev + Math.random() * increment;
+                return next > 100 ? 100 : next;
+            });
+        }, intervalTime);
+
+        return () => clearInterval(interval);
+    }, [isBooting, isVisible]); // Re-run effect when backend status changes to check for acceleration
+
+    useEffect(() => {
+        if (!isVisible) return;
 
         const stages = [
             { threshold: 20, text: "啟動雙子引擎 (Gemini Dual-Engine)..." },
@@ -22,24 +53,19 @@ export function BootScreen({ isBooting }: { isBooting: boolean }) {
             { threshold: 95, text: "正在進行最後的系統巡檢..." },
         ];
 
-        const interval = setInterval(() => {
-            setProgress((prev) => {
-                if (prev >= 98) return prev;
-                const next = prev + Math.random() * 2;
-                
-                const stage = stages.findLast(s => next >= s.threshold);
-                if (stage) setStatusText(stage.text);
-                
-                return next;
-            });
-        }, 150);
-
-        return () => clearInterval(interval);
-    }, [isBooting]);
+        // Find the current stage based on progress
+        const eligibleStages = stages.filter(s => progress >= s.threshold);
+        if (eligibleStages.length > 0) {
+            const currentStage = eligibleStages[eligibleStages.length - 1];
+            setStatusText(currentStage.text);
+        } else if (progress < 20) {
+            setStatusText("正在初始化系統核心...");
+        }
+    }, [progress, isVisible]);
 
     return (
         <AnimatePresence>
-            {isBooting && (
+            {isVisible && (
                 <motion.div
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
