@@ -552,7 +552,7 @@ export default function SkillsPage() {
     return (
         <>
             <div className="flex-1 overflow-hidden bg-background p-6 flex flex-col text-foreground">
-                <div className="max-w-6xl w-full mx-auto h-full flex flex-col pt-4">
+                <div className="max-w-7xl w-full mx-auto h-full flex flex-col pt-4">
  
                     {/* Header */}
                     <div className="flex items-center justify-between mb-8 animate-in fade-in slide-in-from-top-4 duration-500">
@@ -631,13 +631,11 @@ export default function SkillsPage() {
                     </div>
 
                     {/* Main Content */}
-                    <div className="flex flex-1 min-h-0 gap-6 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-100">
-                    {/* Main Content */}
-                    <div className="flex-1 min-h-0 min-h-[500px] animate-in fade-in slide-in-from-bottom-4 duration-700 delay-100">
+                    <div className="flex-1 min-h-0 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-100 flex flex-col">
                         {activeTab === "installed" ? (
-                            <div className="flex h-full gap-6">
+                            <div className="flex h-full gap-6 min-h-0">
                                 {/* Detail View (Left) */}
-                                <Card className="flex-[2] bg-card border-border shadow-2xl flex flex-col min-h-0 rounded-2xl overflow-hidden backdrop-blur-sm">
+                                <Card className="flex-[2] min-w-0 bg-card border-border shadow-2xl flex flex-col min-h-0 rounded-2xl overflow-hidden backdrop-blur-sm">
                                     <CardHeader className="flex-shrink-0 border-b border-border bg-card/60 p-5 px-6">
                                         {selectedSkill ? (
                                             <div className="flex items-center justify-between">
@@ -696,10 +694,10 @@ export default function SkillsPage() {
                                     </CardHeader>
                                     <CardContent className="flex-1 overflow-y-auto p-0 scroll-smooth">
                                         {selectedSkill ? (
-                                            <div className="prose prose-slate dark:prose-invert prose-cyan max-w-none p-6 text-foreground/80 text-[15px] leading-relaxed 
+                                            <div className="prose prose-slate dark:prose-invert prose-cyan max-w-none p-6 text-foreground/80 text-[15px] leading-relaxed break-words
                                                 prose-headings:text-foreground prose-headings:font-bold prose-h1:text-2xl prose-h2:text-xl prose-h3:text-lg
                                                 prose-a:text-primary hover:prose-a:text-primary/80 prose-code:text-primary prose-code:bg-primary/10 prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded-md prose-code:before:content-none prose-code:after:content-none
-                                                prose-pre:bg-secondary prose-pre:border prose-pre:border-border prose-pre:shadow-lg
+                                                prose-pre:bg-secondary prose-pre:border prose-pre:border-border prose-pre:shadow-lg prose-pre:max-w-full prose-pre:overflow-x-auto
                                                 prose-blockquote:border-l-primary prose-blockquote:bg-primary/5 prose-blockquote:px-4 prose-blockquote:py-1 prose-blockquote:rounded-r-lg prose-blockquote:not-italic prose-blockquote:text-muted-foreground
                                                 prose-strong:text-foreground prose-li:marker:text-muted-foreground/50"
                                             >
@@ -1022,7 +1020,6 @@ export default function SkillsPage() {
                             </div>
                         )}
                     </div>
-                </div>
                 </div>
 
                 {/* Floating Sync Hint */}
