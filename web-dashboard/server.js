@@ -45,8 +45,17 @@ class WebServer {
         this.dashboard = dashboard; // Reference to main dashboard if needed for initial state
         this.app = express();
         const cors = require('cors');
+
+        // ─── Remote Access Config ────────────────────────────────────────────────────
+        // When ALLOW_REMOTE_ACCESS=true, open CORS to all origins so remote clients
+        // (e.g. LAN IP / reverse-proxy) can connect. Otherwise, restrict to localhost.
+        const allowRemote = (process.env.ALLOW_REMOTE_ACCESS || '').trim() === 'true';
+        const corsOrigin = allowRemote
+            ? true // allow all origins
+            : ["http://localhost:3000", "http://127.0.0.1:3000", "http://localhost:3001", "http://127.0.0.1:3001"];
+
         this.app.use(cors({
-            origin: ["http://localhost:3000", "http://127.0.0.1:3000", "http://localhost:3001", "http://127.0.0.1:3001"],
+            origin: corsOrigin,
             methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
         }));
         this.app.use(express.json({ limit: '50mb' })); // Enable JSON body parsing with large limit
@@ -58,9 +67,12 @@ class WebServer {
 
         // Security & Cleanup Middleware
         this.app.use((req, res, next) => {
-            // Set a sensible CSP to avoid Chrome defaults blocking things during redirects
+            // CSP: allow WebSocket connections from any host when remote access is on
             // 🎯 [v9.1.10] Relax CSP for images to support diverse sources and prevent broken icons
-            res.setHeader('Content-Security-Policy', "default-src 'self'; connect-src 'self' ws: wss:; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: *;");
+            const connectSrc = allowRemote
+                ? "default-src 'self' *; connect-src * ws: wss:; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: *;"
+                : "default-src 'self'; connect-src 'self' ws: wss:; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: *;";
+            res.setHeader('Content-Security-Policy', connectSrc);
             next();
         });
 
@@ -76,7 +88,7 @@ class WebServer {
 
         this.io = new Server(this.server, {
             cors: {
-                origin: ["http://localhost:3000", "http://127.0.0.1:3000", "http://localhost:3001", "http://127.0.0.1:3001"], // Allow Next.js dev server and alternative ports
+                origin: corsOrigin,
                 methods: ["GET", "POST"]
             }
         });
