@@ -1,4 +1,5 @@
 const { v4: uuidv4 } = require('uuid');
+const ConfigManager = require('../config');
 
 // ============================================================
 // 🚦 Conversation Manager (隊列與防抖系統 - 多用戶隔離版)
@@ -16,6 +17,7 @@ class ConversationManager {
         this.observerMode = false;
         this.interventionLevel = options.interventionLevel || 'CONSERVATIVE';
         this.DEBOUNCE_MS = 1500;
+        this.autoTurnCount = 0; // 🎯 [v9.1.15] Track autonomous turns
     }
 
     async enqueue(ctx, text, options = { isPriority: false, bypassDebounce: false, attachment: null }) {
@@ -24,6 +26,15 @@ class ConversationManager {
         // 🚨 Highest Privilege: priority tasks bypass user buffers completely and inject straight into queue
         if (options.bypassDebounce) {
             console.log(`⚡ [Dialogue Queue] 高優先級請求繞過防抖機制 (${chatId}): "${text.substring(0, 15)}..."`);
+            
+            // 🎯 [v9.1.15] Reset or increment auto turn count
+            if (options.isSystemFeedback) {
+                this.autoTurnCount++;
+                console.log(`🔄 [Dialogue Queue] 自動模式回合數: ${this.autoTurnCount}/${ConfigManager.CONFIG.MAX_AUTO_TURNS || 5}`);
+            } else {
+                this.autoTurnCount = 0;
+            }
+
             this._commitDirectly(ctx, text, options.isPriority, options.attachment, options);
             return;
         }
@@ -40,6 +51,8 @@ class ConversationManager {
         console.log(`⏳ [Dialogue Queue] 收到對話 (${chatId}): "${text.substring(0, 15)}..."${options.attachment ? ' 📎 含有附件' : ''}`);
         if (userState.timer) clearTimeout(userState.timer);
         userState.timer = setTimeout(() => {
+            // 🎯 [v9.1.15] User messages coming through debounce also reset the counter
+            this.autoTurnCount = 0;
             this._commitToQueue(chatId);
         }, this.DEBOUNCE_MS);
         this.userBuffers.set(chatId, userState);
@@ -130,6 +143,21 @@ class ConversationManager {
 
     async _processQueue() {
         if (this.isProcessing || this.queue.length === 0) return;
+
+        // 🎯 [v9.1.15] Enforce Max Auto Turns limit
+        const maxTurns = ConfigManager.CONFIG.MAX_AUTO_TURNS || 5;
+        if (this.autoTurnCount >= maxTurns) {
+            const lastTask = this.queue[0];
+            if (lastTask && lastTask.options && lastTask.options.isSystemFeedback) {
+                console.warn(`🛑 [Dialogue Queue] 已達到自動模式回合上限 (${maxTurns})，停止自動循環。`);
+                this.queue.shift(); // Remove the system feedback task
+                await lastTask.ctx.reply(`⚠️ **自動執行已中止**\n已達到連續自動執行上限 (\`${maxTurns}\` 回合)。為了安全起見，請手動介入確認或重新下達指令。`, { parse_mode: 'Markdown' });
+                this.autoTurnCount = 0; // Reset for next user interaction
+                this._processQueue();
+                return;
+            }
+        }
+
         this.isProcessing = true;
         const task = this.queue.shift();
         try {

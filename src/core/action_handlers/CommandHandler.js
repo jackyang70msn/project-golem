@@ -85,6 +85,7 @@ class CommandHandler {
                     const feedbackOptions = { 
                         isPriority: true, 
                         bypassDebounce: true,
+                        isSystemFeedback: true, // 🎯 [v9.1.15] Mark as system feedback for turn tracking
                         suppressReply: isAuto && isSilent // 🎯 [v9.1.13] 全自動且靜默時，隱藏中間過程
                     };
                     await convoManager.enqueue(ctx, feedbackPrompt, feedbackOptions);
