@@ -59,6 +59,7 @@ const COMMANDS: { command: string; description: string; options?: { name: string
         options: [{ name: '@username', description: '請輸入目標 Bot ID' }]
     },
     { command: '/patch', description: '執行自我反思與代碼優化。' },
+    { command: '/dashboard', description: '顯示控制台連線網址：包含本地 (Local) 與遠端 (Remote) 存取網址。' },
     { command: '/@Gmail', description: '讀取、搜尋您的個人電子郵件。' },
     { command: '/@Google 雲端硬碟', description: '搜尋您的 Google Drive 檔案 (文件、PDF、圖片等)。' },
     { command: '/@Google 文件', description: '讀取或搜尋特定的 Google Docs。' },

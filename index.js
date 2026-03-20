@@ -66,9 +66,9 @@ const ConversationManager = require('./src/core/ConversationManager');
 const NeuroShunter = require('./src/core/NeuroShunter');
 const NodeRouter = require('./src/core/NodeRouter');
 const UniversalContext = require('./src/core/UniversalContext');
-const { downloadFile } = require('./src/utils/HttpUtils');
+const { downloadFile, getLocalIp } = require('./src/utils/HttpUtils');
 const OpticNerve = require('./src/services/OpticNerve');
-const SystemUpgrader = require('./src/managers/SystemUpgrader');
+const SystemUpgrader = require('./src/utils/SystemUpdater');
 const https = require('https');
 const InteractiveMultiAgent = require('./src/core/InteractiveMultiAgent');
 const introspection = require('./src/services/Introspection');
@@ -203,6 +203,7 @@ function getOrCreateGolem() {
                             { command: 'new', description: '物理重生：開啟全新對話' },
                             { command: 'new_memory', description: '徹底轉生：清空 DB 並重置' },
                             { command: 'model', description: '模型切換 (fast/thinking/pro)' },
+                            { command: 'dashboard', description: '顯示控制台連線網址' },
                             { command: 'enable_silent', description: '開啟完全靜默模式' },
                             { command: 'disable_silent', description: '解除靜默模式' },
                             { command: 'enable_observer', description: '同步對話但不發言' },
@@ -460,6 +461,26 @@ async function handleUnifiedMessage(ctx, forceTargetId = null) {
         } catch (e) {
             await ctx.reply(`❌ 切換模組失敗: ${e.message}`);
         }
+        return;
+    }
+
+    // ✨ [新增] /dashboard 指令實作
+    if (ctx.isAdmin && ctx.text && ctx.text.trim().toLowerCase() === '/dashboard') {
+        const port = process.env.DASHBOARD_PORT || 3000;
+        const allowRemote = process.env.ALLOW_REMOTE_ACCESS === 'true';
+        const localUrl = `http://localhost:${port}/dashboard`;
+        
+        let message = `🌐 **Golem 控制台網址**\n\n🏠 **本地存取 (Local):**\n${localUrl}`;
+        
+        if (allowRemote) {
+            const localIp = getLocalIp();
+            const remoteUrl = `http://${localIp}:${port}/dashboard`;
+            message += `\n\n🌍 **區域網路存取 (Remote):**\n${remoteUrl}`;
+        } else {
+            message += `\n\n> 💡 目前未開啟遠端存取。若需從區域網路連線，請至「系統總表」開啟「允許遠端存取」。`;
+        }
+        
+        await ctx.reply(message, { parse_mode: 'Markdown' });
         return;
     }
 

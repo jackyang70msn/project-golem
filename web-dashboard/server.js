@@ -3,6 +3,7 @@ const http = require('http');
 const { Server } = require("socket.io");
 const path = require('path');
 const fs = require('fs');
+const { getLocalIp } = require('../src/utils/HttpUtils');
 const { MANDATORY_SKILLS, OPTIONAL_SKILLS: OPTIONAL_SKILL_LIST, resolveEnabledSkills } = require('../src/skills/skillsConfig');
 
 // ─── .env helper ────────────────────────────────────────────────────────────────────
@@ -40,18 +41,6 @@ function maskValue(val) {
     return val.slice(0, 4) + '****' + val.slice(-4);
 }
 
-function getLocalIp() {
-    const os = require('os');
-    const interfaces = os.networkInterfaces();
-    for (const name of Object.keys(interfaces)) {
-        for (const iface of interfaces[name]) {
-            if (iface.family === 'IPv4' && !iface.internal) {
-                return iface.address;
-            }
-        }
-    }
-    return '127.0.0.1';
-}
 
 class WebServer {
     constructor(dashboard) {
@@ -1257,7 +1246,6 @@ class WebServer {
                 const health = {
                     node: process.version.startsWith('v20') || process.version.startsWith('v22') || process.version.startsWith('v21') || process.version.startsWith('v23') || process.version.startsWith('v25'),
                     env: fs.existsSync(DOT_ENV_PATH),
-                    keys: true, // API Keys are now optional
                     deps: fs.existsSync(path.join(process.cwd(), 'node_modules')),
                     core: ['index.js', 'package.json', 'dashboard.js'].every(f => fs.existsSync(path.join(process.cwd(), f))),
                     dashboard: fs.existsSync(path.join(process.cwd(), 'web-dashboard/node_modules')) || fs.existsSync(path.join(process.cwd(), 'web-dashboard/.next'))
@@ -1319,7 +1307,8 @@ class WebServer {
                     golemMemoryMode: envVars.GOLEM_MEMORY_MODE || 'lancedb',
                     golemEmbeddingProvider: envVars.GOLEM_EMBEDDING_PROVIDER || 'gemini',
                     golemLocalEmbeddingModel: envVars.GOLEM_LOCAL_EMBEDDING_MODEL || 'Xenova/bge-small-zh-v1.5',
-                    golemMode: 'SINGLE'
+                    golemMode: 'SINGLE',
+                    allowRemoteAccess: this.allowRemote
                 });
             } catch (e) {
                 console.error('[WebServer] Failed to get system config:', e);
@@ -1329,7 +1318,7 @@ class WebServer {
 
         this.app.post('/api/system/config', (req, res) => {
             try {
-                const { geminiApiKeys, userDataDir, golemMemoryMode, golemEmbeddingProvider, golemLocalEmbeddingModel, golemMode } = req.body;
+                const { geminiApiKeys, userDataDir, golemMemoryMode, golemEmbeddingProvider, golemLocalEmbeddingModel, golemMode, allowRemoteAccess } = req.body;
                 const EnvManager = require('../src/utils/EnvManager');
                 const ConfigManager = require('../src/config/index');
 
@@ -1340,6 +1329,7 @@ class WebServer {
                 if (golemMemoryMode) updates.GOLEM_MEMORY_MODE = golemMemoryMode;
                 if (golemEmbeddingProvider) updates.GOLEM_EMBEDDING_PROVIDER = golemEmbeddingProvider;
                 if (golemLocalEmbeddingModel) updates.GOLEM_LOCAL_EMBEDDING_MODEL = golemLocalEmbeddingModel;
+                if (allowRemoteAccess !== undefined) updates.ALLOW_REMOTE_ACCESS = String(allowRemoteAccess);
                 updates.GOLEM_MODE = 'SINGLE';
 
                 if (Object.keys(updates).length > 0) {
@@ -1348,6 +1338,10 @@ class WebServer {
 
                     EnvManager.updateEnv(updates);
                     console.log('📝 [System] System configuration updated via web dashboard. Flag: SYSTEM_CONFIGURED=true');
+
+                    if (updates.ALLOW_REMOTE_ACCESS !== undefined) {
+                        this.allowRemote = updates.ALLOW_REMOTE_ACCESS === 'true';
+                    }
 
                     // 觸發熱重載
                     ConfigManager.reloadConfig();

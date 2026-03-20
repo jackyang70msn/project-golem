@@ -59,6 +59,7 @@ export default function SystemSetupPage() {
     const golemMode = "SINGLE";
     const [embeddingProvider, setEmbeddingProvider] = useState<"gemini" | "local">("local");
     const [localEmbeddingModel, setLocalEmbeddingModel] = useState("Xenova/bge-small-zh-v1.5");
+    const [allowRemoteAccess, setAllowRemoteAccess] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const [isFetching, setIsFetching] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -74,6 +75,7 @@ export default function SystemSetupPage() {
                 setMemoryMode("lancedb");
                 setEmbeddingProvider("local");
                 setLocalEmbeddingModel(data.golemLocalEmbeddingModel || "Xenova/bge-small-zh-v1.5");
+                setAllowRemoteAccess(data.allowRemoteAccess === true || data.allowRemoteAccess === "true");
             })
             .catch(console.error)
             .finally(() => setIsFetching(false));
@@ -93,7 +95,8 @@ export default function SystemSetupPage() {
                     golemMemoryMode: memoryMode,
                     golemEmbeddingProvider: "local",
                     golemLocalEmbeddingModel: localEmbeddingModel,
-                    golemMode: golemMode
+                    golemMode: golemMode,
+                    allowRemoteAccess: allowRemoteAccess
                 }),
             });
             const data = await res.json();
@@ -233,6 +236,40 @@ export default function SystemSetupPage() {
                                         模型將在第一次啟動時自動下載至本地端。具備極佳隱私性與回應速度。
                                     </p>
                                 </div>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Network Config */}
+                    <div className="bg-gray-900/80 border border-gray-800 rounded-2xl p-6 shadow-xl relative overflow-hidden">
+                        <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-emerald-600 to-teal-400 rounded-t-2xl" />
+
+                        <div className="flex items-center gap-2 mb-5">
+                            <ExternalLink className="w-5 h-5 text-emerald-400" />
+                            <h2 className="text-base font-semibold text-white">網路連線設定</h2>
+                        </div>
+
+                        <div className="flex items-center justify-between p-4 bg-gray-950 border border-gray-800 rounded-xl">
+                            <div className="space-y-1">
+                                <div className="text-sm font-medium text-white">允許遠端存取 (Remote Access)</div>
+                                <div className="text-xs text-gray-500 leading-relaxed">
+                                    開啟後可允許區域網路或其他 IP 連線。若關閉則僅限 localhost。
+                                </div>
+                            </div>
+                            <div 
+                                onClick={() => setAllowRemoteAccess(!allowRemoteAccess)}
+                                className={`w-12 h-6 rounded-full p-1 cursor-pointer transition-colors duration-200 ease-in-out ${allowRemoteAccess ? 'bg-emerald-600' : 'bg-gray-700'}`}
+                            >
+                                <div className={`w-4 h-4 rounded-full bg-white shadow-sm transform transition-transform duration-200 ease-in-out ${allowRemoteAccess ? 'translate-x-6' : 'translate-x-0'}`} />
+                            </div>
+                        </div>
+
+                        {allowRemoteAccess && (
+                            <div className="mt-4 p-3 bg-amber-950/20 border border-amber-900/30 rounded-lg flex items-start gap-2 animate-in fade-in zoom-in-95">
+                                <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
+                                <p className="text-[10px] text-amber-200/70 leading-relaxed">
+                                    ⚠️ 警告：開啟遠端存取會降低安全性。請確保您在受信任的網路環境中，或已設置適當的防火牆保護。
+                                </p>
                             </div>
                         )}
                     </div>

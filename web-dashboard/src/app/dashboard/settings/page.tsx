@@ -155,7 +155,6 @@ const SystemHealthDashboard = ({ systemStatus }: { systemStatus: SystemStatus | 
                         <h3 className="text-sm font-semibold text-foreground">健康檢查 (Health)</h3>
                     </div>
                     <div className="grid grid-cols-2 gap-2">
-                        <StatusItem label="API Keys" status={!!health?.keys} icon={Activity} />
                         <StatusItem label="Env Config" status={!!health?.env} icon={Activity} />
                         <StatusItem label="Dependencies" status={!!health?.deps} icon={Activity} />
                         <StatusItem label="Core Files" status={!!health?.core} icon={Activity} />
@@ -1294,6 +1293,22 @@ export default function SettingsPage() {
                                     <SettingField label="日誌檢查間隔 (分)" keyName="ARCHIVE_CHECK_INTERVAL" placeholder="30" value={config.env.ARCHIVE_CHECK_INTERVAL || ""} onChange={(val) => handleChangeEnv("ARCHIVE_CHECK_INTERVAL", val)} />
                                     <SettingField label="資料暫存路徑" keyName="USER_DATA_DIR" placeholder="./.golem_data" value={config.env.USER_DATA_DIR || ""} onChange={(val) => handleChangeEnv("USER_DATA_DIR", val)} />
                                     <SettingField label="OTA 升級節點" keyName="GITHUB_REPO" placeholder="Arvincreator/project-golem" value={config.env.GITHUB_REPO || ""} onChange={(val) => handleChangeEnv("GITHUB_REPO", val)} />
+                                    
+                                    <div className="flex flex-col mb-4">
+                                        <label className="text-sm font-medium text-muted-foreground mb-1 flex items-center justify-between gap-1 overflow-hidden">
+                                            <span className="truncate mr-1" title="允許遠端存取 (Remote Access)">允許遠端存取 (Remote Access)</span>
+                                        </label>
+                                        <div 
+                                            onClick={() => {
+                                                const newValue = config.env.ALLOW_REMOTE_ACCESS === 'true' ? 'false' : 'true';
+                                                handleChangeEnv("ALLOW_REMOTE_ACCESS", newValue);
+                                            }}
+                                            className={`w-12 h-6 rounded-full p-1 cursor-pointer transition-colors duration-200 ease-in-out ${config.env.ALLOW_REMOTE_ACCESS === 'true' ? 'bg-emerald-600' : 'bg-gray-700'}`}
+                                        >
+                                            <div className={`w-4 h-4 rounded-full bg-white shadow-sm transform transition-transform duration-200 ease-in-out ${config.env.ALLOW_REMOTE_ACCESS === 'true' ? 'translate-x-6' : 'translate-x-0'}`} />
+                                        </div>
+                                        <p className="text-xs text-muted-foreground mt-1">開啟後可允許區域網路或其他 IP 連線。若關閉則僅限 localhost。</p>
+                                    </div>
                                 </div>
 
                                 <div className="pt-4 border-t border-border">
