@@ -894,14 +894,14 @@ export default function SettingsPage() {
                                     <SettingSelectField
                                         label="記憶引擎模式"
                                         desc="系統已鎖定為 LanceDB 高效向量資料庫，以確保最佳效能與穩定性。"
-                                        value={config.env.GOLEM_MEMORY_MODE || "lancedb"}
+                                        value={config.env.GOLEM_MEMORY_MODE || "lancedb-pro"}
                                         onChange={(val) => handleChangeEnv("GOLEM_MEMORY_MODE", val)}
                                         options={[
-                                            { value: "lancedb", label: "LanceDB (高效能 Pro 版)" }
+                                            { value: "lancedb-pro", label: "LanceDB (高效能 Pro 版)" }
                                         ]}
                                     />
 
-                                    {config.env.GOLEM_MEMORY_MODE === "lancedb" && (
+                                    {config.env.GOLEM_MEMORY_MODE === "lancedb-pro" && (
                                         <div className="bg-primary/5 p-4 rounded-xl border border-primary/20 space-y-4 mb-4 animate-in zoom-in-95 mt-4">
                                             <h4 className="text-xs font-bold text-primary flex items-center gap-2">
                                                 <Sparkles className="w-3 h-3" /> 本地向量模型配置 (Local Embedding)

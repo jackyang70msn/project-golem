@@ -100,7 +100,7 @@ export default function MemoryPage() {
                         <StatusCard
                             icon={Database}
                             title="記憶儲存 (Storage)"
-                            value={config?.golemMemoryMode === 'lancedb' ? "LanceDB (Pro)" : (config?.golemMemoryMode ? config.golemMemoryMode.toUpperCase() : "LanceDB (Pro)")}
+                            value={config?.golemMemoryMode === 'lancedb-pro' ? "LanceDB (Pro)" : (config?.golemMemoryMode ? config.golemMemoryMode.toUpperCase() : "LanceDB (Pro)")}
                             status={status === 'ready' ? 'online' : 'loading'}
                             description="高效本地向量資料庫 (Persistent Storage)"
                         />

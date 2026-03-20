@@ -4,7 +4,7 @@
 const path = require('path');
 const ConfigManager = require('../config');
 const DOMDoctor = require('../services/DOMDoctor');
-const LanceDBMemoryDriver = require('../memory/LanceDBMemoryDriver');
+const LanceDBProDriver = require('../memory/LanceDBProDriver');
 const SystemNativeDriver = require('../memory/SystemNativeDriver');
 
 const BrowserLauncher = require('./BrowserLauncher');
@@ -35,14 +35,14 @@ class GolemBrain {
         this.selectors = this.doctor.loadSelectors();
 
         // ── 記憶引擎 ──
-        // 🎯 [優化] 預設切換為 LanceDB (本地向量資料庫)，移除瀏覽器模式以節省資源
-        const mode = ConfigManager.cleanEnv(process.env.GOLEM_MEMORY_MODE || 'lancedb').toLowerCase();
+        const mode = ConfigManager.cleanEnv(process.env.GOLEM_MEMORY_MODE || 'lancedb-pro').toLowerCase();
         console.log(`⚙️ [System] 記憶引擎模式: ${mode.toUpperCase()} (Golem: ${this.golemId})`);
 
         if (mode === 'native' || mode === 'system') {
             this.memoryDriver = new SystemNativeDriver();
         } else {
-            this.memoryDriver = new LanceDBMemoryDriver();
+            // Default to lancedb-pro
+            this.memoryDriver = new LanceDBProDriver();
         }
 
         // ── 對話日誌 ──

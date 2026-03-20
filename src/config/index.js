@@ -37,6 +37,7 @@ const CONFIG = {
     INTERVENTION_LEVEL: cleanEnv(process.env.GOLEM_INTERVENTION_LEVEL) || 'CONSERVATIVE',
     // --- AI Backend ---
     GOLEM_BACKEND: cleanEnv(process.env.GOLEM_BACKEND) || 'gemini',
+    GOLEM_MEMORY_MODE: cleanEnv(process.env.GOLEM_MEMORY_MODE) || 'lancedb-pro',
     // --- Scheduled Tasks ---
     AWAKE_INTERVAL_MIN: Number(cleanEnv(process.env.GOLEM_AWAKE_INTERVAL_MIN)) || 10, // 預設最小 10 分鐘
     AWAKE_INTERVAL_MAX: Number(cleanEnv(process.env.GOLEM_AWAKE_INTERVAL_MAX)) || 60, // 預設最大 60 分鐘
@@ -144,6 +145,7 @@ const reloadConfig = () => {
     CONFIG.ARCHIVE_THRESHOLD_TODAY = Number(cleanEnv(process.env.ARCHIVE_THRESHOLD_TODAY)) || 1;
     CONFIG.EMBEDDING_PROVIDER = cleanEnv(process.env.GOLEM_EMBEDDING_PROVIDER) || 'local';
     CONFIG.LOCAL_EMBEDDING_MODEL = cleanEnv(process.env.GOLEM_LOCAL_EMBEDDING_MODEL) || 'Xenova/bge-small-zh-v1.5';
+    CONFIG.GOLEM_MEMORY_MODE = cleanEnv(process.env.GOLEM_MEMORY_MODE) || 'lancedb-pro';
 
     const newGeminiUrls = (process.env.GEMINI_URLS || '').split(',').map(u => cleanEnv(u, true)).filter(u => u);
     CONFIG.GEMINI_URLS.length = 0;
