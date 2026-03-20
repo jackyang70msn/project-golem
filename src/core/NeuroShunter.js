@@ -20,6 +20,12 @@ class NeuroShunter {
         const parsed = ResponseParser.parse(textToParse);
         let shouldSuppressReply = options.suppressReply === true;
 
+        // 🎯 [v9.1.13] 靜默模式自癒：如果沒有後續動作 (Action)，代表任務結束，強制解除靜默以顯示最終回覆
+        if (shouldSuppressReply && parsed.actions.length === 0) {
+            console.log(`📢 [NeuroShunter] 偵測到任務結束或無後續動作，自動解除靜默模式。`);
+            shouldSuppressReply = false;
+        }
+
         // 核心：偵測 [INTERVENE] 標籤以實現觀察者模式自主介入
         if (textToParse.includes('[INTERVENE]')) {
             console.log(`🚀 [NeuroShunter] 偵測到 AI 自主介入請求 [INTERVENE]！`);

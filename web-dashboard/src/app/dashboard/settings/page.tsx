@@ -1077,6 +1077,14 @@ export default function SettingsPage() {
                                     value={config.env.GOLEM_AUTO_APPROVE_ALL || ""}
                                     onChange={(val) => handleChangeEnv("GOLEM_AUTO_APPROVE_ALL", val)}
                                 />
+                                <SettingField
+                                    label="沈默自動執行 (Silent Auto-Approve)"
+                                    keyName="GOLEM_SILENT_AUTO_APPROVE"
+                                    placeholder="false"
+                                    desc="當全自動執行開啟時，隱藏中間過程的 AI 解說文字，僅顯示最終結果與錯誤訊息。"
+                                    value={config.env.GOLEM_SILENT_AUTO_APPROVE || ""}
+                                    onChange={(val) => handleChangeEnv("GOLEM_SILENT_AUTO_APPROVE", val)}
+                                />
                             </div>
                         </div>
 

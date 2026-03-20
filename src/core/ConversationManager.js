@@ -24,17 +24,18 @@ class ConversationManager {
         // 🚨 Highest Privilege: priority tasks bypass user buffers completely and inject straight into queue
         if (options.bypassDebounce) {
             console.log(`⚡ [Dialogue Queue] 高優先級請求繞過防抖機制 (${chatId}): "${text.substring(0, 15)}..."`);
-            this._commitDirectly(ctx, text, options.isPriority, options.attachment);
+            this._commitDirectly(ctx, text, options.isPriority, options.attachment, options);
             return;
         }
 
-        let userState = this.userBuffers.get(chatId) || { text: "", timer: null, ctx: ctx, attachments: [] };
+        let userState = this.userBuffers.get(chatId) || { text: "", timer: null, ctx: ctx, attachments: [], options: {} };
         userState.text = userState.text ? `${userState.text}\n${text}` : text;
         userState.ctx = ctx;
         if (options.attachment) {
             userState.attachments = userState.attachments || [];
             userState.attachments.push(options.attachment);
         }
+        userState.options = { ...userState.options, ...options };
 
         console.log(`⏳ [Dialogue Queue] 收到對話 (${chatId}): "${text.substring(0, 15)}..."${options.attachment ? ' 📎 含有附件' : ''}`);
         if (userState.timer) clearTimeout(userState.timer);
@@ -44,7 +45,7 @@ class ConversationManager {
         this.userBuffers.set(chatId, userState);
     }
 
-    _commitDirectly(ctx, text, isPriority, attachment = null) {
+    _commitDirectly(ctx, text, isPriority, attachment = null, options = {}) {
         // ✨ [v9.1 插隊系統：大腦層擴充]
         // 如果不是特急件 (isPriority=false)，且隊列中已有任務 (長度 >= 1)，則觸發詢問
         if (!isPriority && this.queue.length >= 1) {
@@ -56,6 +57,7 @@ class ConversationManager {
                 ctx,
                 text,
                 attachment,
+                options, // 🎯 [v9.1.13] 攜帶附加選項
                 timestamp: Date.now()
             });
 
@@ -102,15 +104,15 @@ class ConversationManager {
         }
 
         // 正常入隊
-        this._actualCommit(ctx, text, isPriority, attachment);
+        this._actualCommit(ctx, text, isPriority, attachment, options);
     }
 
-    _actualCommit(ctx, text, isPriority, attachment = null) {
+    _actualCommit(ctx, text, isPriority, attachment = null, options = {}) {
         console.log(`📦 [Dialogue Queue] 加入隊列 (Direct) ${isPriority ? '[💥VIP 插隊中]' : ''} - 準備交由大腦處理`);
         if (isPriority) {
-            this.queue.unshift({ ctx, text, attachment }); // Priority goes to the front of the line
+            this.queue.unshift({ ctx, text, attachment, options }); // Priority goes to the front of the line
         } else {
-            this.queue.push({ ctx, text, attachment });
+            this.queue.push({ ctx, text, attachment, options });
         }
         this._processQueue();
     }
@@ -121,8 +123,9 @@ class ConversationManager {
         const fullText = userState.text;
         const currentCtx = userState.ctx;
         const attachment = userState.attachments && userState.attachments.length > 0 ? userState.attachments[0] : null; // 目前僅支援單張，取第一張
+        const options = userState.options || {};
         this.userBuffers.delete(chatId);
-        this._commitDirectly(currentCtx, fullText, false, attachment);
+        this._commitDirectly(currentCtx, fullText, false, attachment, options);
     }
 
     async _processQueue() {
@@ -170,13 +173,14 @@ class ConversationManager {
             const brainResponse = await this.brain.sendMessage(finalInput, false, {
                 isObserver: this.observerMode,
                 interventionLevel: this.interventionLevel,
-                attachment: task.attachment
+                attachment: task.attachment,
+                ...task.options // 🎯 [v9.1.13] 透傳來自隊列的自定義選項 (如 suppressReply)
             });
 
             const { text: raw, attachments: responseAttachments } = brainResponse;
 
             await this.NeuroShunter.dispatch(task.ctx, raw, this.brain, this.controller, { 
-                suppressReply: shouldSuppressReply,
+                suppressReply: shouldSuppressReply || task.options.suppressReply === true,
                 attachments: responseAttachments 
             });
         } catch (e) {
