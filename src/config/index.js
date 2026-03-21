@@ -35,6 +35,10 @@ const CONFIG = {
     DONATE_URL: 'https://buymeacoffee.com/arvincreator',
     TZ: cleanEnv(process.env.TZ) || 'Asia/Taipei',
     INTERVENTION_LEVEL: cleanEnv(process.env.GOLEM_INTERVENTION_LEVEL) || 'CONSERVATIVE',
+    TG_ENGINE: cleanEnv(process.env.TG_ENGINE) || 'legacy',
+    CB_TG_TIMEOUT_MS: cleanEnv(process.env.CB_TG_TIMEOUT_MS) || '10000',
+    CB_TG_RESET_MS: cleanEnv(process.env.CB_TG_RESET_MS) || '15000',
+    CB_TG_ERROR_PCT: cleanEnv(process.env.CB_TG_ERROR_PCT) || '30',
     // --- AI Backend ---
     GOLEM_BACKEND: cleanEnv(process.env.GOLEM_BACKEND) || 'gemini',
     GOLEM_MEMORY_MODE: cleanEnv(process.env.GOLEM_MEMORY_MODE) || 'lancedb-pro',
@@ -133,6 +137,10 @@ const reloadConfig = () => {
     CONFIG.QMD_PATH = cleanEnv(process.env.GOLEM_QMD_PATH || 'qmd', true);
     CONFIG.TZ = cleanEnv(process.env.TZ) || 'Asia/Taipei';
     CONFIG.INTERVENTION_LEVEL = cleanEnv(process.env.GOLEM_INTERVENTION_LEVEL) || 'CONSERVATIVE';
+    CONFIG.TG_ENGINE = cleanEnv(process.env.TG_ENGINE) || 'legacy';
+    CONFIG.CB_TG_TIMEOUT_MS = cleanEnv(process.env.CB_TG_TIMEOUT_MS) || '10000';
+    CONFIG.CB_TG_RESET_MS = cleanEnv(process.env.CB_TG_RESET_MS) || '15000';
+    CONFIG.CB_TG_ERROR_PCT = cleanEnv(process.env.CB_TG_ERROR_PCT) || '30';
     CONFIG.GOLEM_BACKEND = cleanEnv(process.env.GOLEM_BACKEND) || 'gemini';
     CONFIG.AWAKE_INTERVAL_MIN = Number(cleanEnv(process.env.GOLEM_AWAKE_INTERVAL_MIN)) || 10;
     CONFIG.AWAKE_INTERVAL_MAX = Number(cleanEnv(process.env.GOLEM_AWAKE_INTERVAL_MAX)) || 60;

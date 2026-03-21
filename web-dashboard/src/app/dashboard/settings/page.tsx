@@ -794,6 +794,7 @@ export default function SettingsPage() {
                         { id: 'overview', name: '系統概況', icon: Activity },
                         { id: 'engine', name: '核心引擎', icon: Cpu },
                         { id: 'messaging', name: '通訊平台', icon: MessageSquare },
+                        { id: 'tg_advanced', name: 'Telegram 進階', icon: Settings2 },
                         { id: 'urls', name: '網址管理', icon: Server },
                         { id: 'schedule', name: '自動化作息', icon: Clock },
                         { id: 'security', name: '安全與指令', icon: ShieldCheck },
@@ -1007,6 +1008,39 @@ export default function SettingsPage() {
                                         value={config.env.MOLTBOOK_AGENT_NAME || ""}
                                         onChange={(val) => handleChangeEnv("MOLTBOOK_AGENT_NAME", val)}
                                     />
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* Telegram Advanced Tab */}
+                {activeTab === 'tg_advanced' && (
+                    <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 max-w-2xl mx-auto">
+                        <div className="bg-card border border-border hover:border-primary/30 transition-colors rounded-xl p-5 shadow-sm space-y-6">
+                            <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
+                                🚀 Telegram 進階與保護機制
+                            </h2>
+                            <SettingSelectField
+                                label="Telegram 引擎模式 (TG_ENGINE)"
+                                desc="設定底層通訊架構。推薦使用具備斷路器與防呆機制的 grammy，若遇到相容性狀況可降級回 legacy。"
+                                value={config.env.TG_ENGINE || "grammy"}
+                                onChange={(val) => handleChangeEnv("TG_ENGINE", val)}
+                                options={[
+                                    { value: "grammy", label: "grammY (推薦，新版架構)" },
+                                    { value: "legacy", label: "Legacy (舊版 node-telegram-bot-api)" }
+                                ]}
+                            />
+                            
+                            <div className="pt-4 border-t border-border">
+                                <h3 className="text-sm font-bold text-foreground mb-4">🛡️ Opossum 斷路器設定 (Circuit Breaker)</h3>
+                                <p className="text-xs text-muted-foreground mb-4">保護輪詢機制，當網路異常時自動斷開避免連線風暴。</p>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <SettingField label="超時閾值 (ms)" keyName="CB_TG_TIMEOUT_MS" placeholder="10000" desc="API 呼叫超過此時間視為失敗" value={config.env.CB_TG_TIMEOUT_MS || ""} onChange={(val) => handleChangeEnv("CB_TG_TIMEOUT_MS", val)} />
+                                    <SettingField label="重置等待時間 (ms)" keyName="CB_TG_RESET_MS" placeholder="15000" desc="斷開後等待多久嘗試恢復連線" value={config.env.CB_TG_RESET_MS || ""} onChange={(val) => handleChangeEnv("CB_TG_RESET_MS", val)} />
+                                </div>
+                                <div className="mt-4">
+                                    <SettingField label="容忍錯誤率 (%)" keyName="CB_TG_ERROR_PCT" placeholder="30" desc="錯誤率大於此數值時觸發斷路器" value={config.env.CB_TG_ERROR_PCT || ""} onChange={(val) => handleChangeEnv("CB_TG_ERROR_PCT", val)} />
                                 </div>
                             </div>
                         </div>
@@ -1352,7 +1386,8 @@ export default function SettingsPage() {
                                                 'GOLEM_SLEEP_START', 'GOLEM_SLEEP_END', 'USER_INTERESTS', 'COMMAND_WHITELIST', 'CUSTOM_COMMANDS',
                                                 'ENABLE_LOG_NOTIFICATIONS', 'ARCHIVE_CHECK_INTERVAL', 'ARCHIVE_THRESHOLD_YESTERDAY', 'ARCHIVE_THRESHOLD_TODAY',
                                                 'LOG_MAX_SIZE_MB', 'LOG_RETENTION_DAYS', 'ENABLE_SYSTEM_LOG', 'GOLEM_BACKEND', 'GOLEM_STRICT_SAFEGUARD',
-                                                'GOLEM_INTERVENTION_LEVEL', 'GOLEM_MAX_AUTO_TURNS', 'GOLEM_MAX_RESPONSE_WORDS'
+                                                'GOLEM_INTERVENTION_LEVEL', 'GOLEM_MAX_AUTO_TURNS', 'GOLEM_MAX_RESPONSE_WORDS',
+                                                'TG_ENGINE', 'CB_TG_TIMEOUT_MS', 'CB_TG_RESET_MS', 'CB_TG_ERROR_PCT'
                                             ].includes(k))
                                             .map(key => (
                                                 <div key={key} className="bg-secondary/20 p-2 rounded border border-border/40">
