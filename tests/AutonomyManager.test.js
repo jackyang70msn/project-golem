@@ -16,15 +16,17 @@ jest.mock('fs', () => mockFs);
 jest.mock('../src/skills/core/log-archive', () => ({
     run: jest.fn().mockResolvedValue('Archive successful'),
 }));
-jest.mock('../src/core/NeuroShunter', () => ({
-    dispatch: jest.fn(),
+jest.mock('../packages/protocol', () => ({
+    NeuroShunter: {
+        dispatch: jest.fn(),
+    },
 }));
 
 const fs = require('fs');
 const AutonomyManager = require('../src/managers/AutonomyManager');
 const ConfigManager = require('../src/config');
 const logArchive = require('../src/skills/core/log-archive');
-const NeuroShunter = require('../src/core/NeuroShunter');
+const { NeuroShunter } = require('../packages/protocol');
 
 describe('AutonomyManager', () => {
     let manager;

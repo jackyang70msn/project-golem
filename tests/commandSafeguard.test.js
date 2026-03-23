@@ -1,4 +1,4 @@
-const safeguard = require('../src/utils/CommandSafeguard');
+const { CommandSafeguard: safeguard } = require('../packages/security');
 
 describe('CommandSafeguard', () => {
     beforeEach(() => {

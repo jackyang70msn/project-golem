@@ -1,4 +1,4 @@
-const NeuroShunter = require('../src/core/NeuroShunter');
+const { NeuroShunter } = require('../packages/protocol');
 const ResponseParser = require('../src/utils/ResponseParser');
 const MultiAgentHandler = require('../src/core/action_handlers/MultiAgentHandler');
 const SkillHandler = require('../src/core/action_handlers/SkillHandler');
