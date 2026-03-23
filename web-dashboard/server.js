@@ -83,11 +83,6 @@ class WebServer {
             res.json({});
         });
 
-        // Health check for debugging
-        this.app.get('/api/health', (req, res) => {
-            res.json({ status: 'ok', time: new Date().toISOString() });
-        });
-
         this.io = new Server(this.server, {
             cors: {
                 origin: corsOrigin,
@@ -1407,12 +1402,25 @@ class WebServer {
         // --- Health Check Endpoint ---
         this.app.get('/api/health', (req, res) => {
             const pkg = (() => { try { return require('../package.json'); } catch { return { version: 'unknown' }; } })();
+            const contextEntries = Array.from(this.contexts.entries());
+            const hasActivePage = contextEntries.some(([, ctx]) => !!(ctx && ctx.brain && ctx.brain.page));
+            const runningCount = contextEntries.filter(([, ctx]) => (ctx && ctx.brain && ctx.brain.status === 'running')).length;
+            let skillCount = 0;
+            try {
+                const { resolveEnabledSkills } = require('../src/skills/skillsConfig');
+                skillCount = resolveEnabledSkills(process.env.OPTIONAL_SKILLS || '', []).size;
+            } catch (e) { }
+
             res.json({
                 status: 'ok',
                 uptime: process.uptime(),
                 memory: process.memoryUsage(),
-                brain: { connected: !!(this.brain && this.brain.page) },
-                skills: this.brain?.skillManager?.getLoadedSkills?.()?.length || 0,
+                brain: {
+                    connected: hasActivePage,
+                    runningCount,
+                    contextCount: contextEntries.length
+                },
+                skills: skillCount,
                 version: pkg.version,
                 timestamp: new Date().toISOString()
             });

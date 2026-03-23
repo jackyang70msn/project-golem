@@ -856,6 +856,7 @@ async function handleUnifiedCallback(ctx, actionData) {
 
 global.handleDashboardMessage = handleUnifiedMessage;
 global.handleUnifiedCallback = handleUnifiedCallback;
+global.getOrCreateGolem = getOrCreateGolem;
 
 async function executeDeploy(ctx) {
     const { autonomy, brain } = getOrCreateGolem();
@@ -976,4 +977,9 @@ global.fullShutdown = async function () {
     process.exit(0);
 };
 
-module.exports = { getOrCreateGolem };
+module.exports = {
+    getOrCreateGolem,
+    handleUnifiedMessage,
+    handleDashboardMessage: handleUnifiedMessage,
+    handleUnifiedCallback
+};

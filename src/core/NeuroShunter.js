@@ -62,8 +62,12 @@ class NeuroShunter {
                 });
             }
 
-            // 附件處理：若是 Dashbaord 或有支援 attachments 的平台
-            await ctx.reply(finalReply, { attachments: attachments });
+            // 附件處理：若無附件則維持單參數呼叫，相容既有上下文與測試
+            if (attachments.length > 0) {
+                await ctx.reply(finalReply, { attachments: attachments });
+            } else {
+                await ctx.reply(finalReply);
+            }
         } else if (parsed.reply && shouldSuppressReply) {
             console.log(`🤫 [NeuroShunter] 檢測到靜默模式，已攔截回覆內容。`);
         }

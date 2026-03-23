@@ -214,6 +214,9 @@ class PageInteractor {
 
         // 1. 先使用 page.focus 確保焦點在輸入框上
         try {
+            if (typeof this.page.focus === 'function') {
+                await this.page.focus(targetSelector);
+            }
             await inputEl.scrollIntoViewIfNeeded(); // [Playwright 強化] 確保在可視區域
             await inputEl.click({ delay: 50 });    // [強化] 點擊一下以確保真實 Focus
             await inputEl.focus();

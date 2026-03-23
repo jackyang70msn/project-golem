@@ -1,9 +1,20 @@
 const fs = require('fs');
 const path = require('path');
 const util = require('util');
-const sqlite3 = require('sqlite3').verbose();
 const { LOG_RETENTION_MS, MEMORY_TIERS } = require('../core/constants');
 const ResponseParser = require('../utils/ResponseParser');
+
+let sqlite3Instance = null;
+
+function getSqlite3() {
+    if (sqlite3Instance) return sqlite3Instance;
+    try {
+        sqlite3Instance = require('sqlite3').verbose();
+        return sqlite3Instance;
+    } catch (error) {
+        throw new Error(`sqlite3 無法載入，請確認已安裝對應 Node 版本的 native bindings: ${error.message}`);
+    }
+}
 
 /**
  * 📝 ChatLogManager - 基於 SQLite (WAL) 的記憶壓縮引擎
@@ -40,6 +51,7 @@ class ChatLogManager {
             fs.mkdirSync(this.dbDir, { recursive: true });
         }
 
+        const sqlite3 = getSqlite3();
         this.db = new sqlite3.Database(this.dbPath);
         this.runAsync = util.promisify(this.db.run.bind(this.db));
         this.allAsync = util.promisify(this.db.all.bind(this.db));
@@ -84,8 +96,8 @@ class ChatLogManager {
         // 進行舊版資料庫移轉 (僅執行一次)
         await this._migrateLegacyJSON();
         
-        this.cleanup();
         this._isInitialized = true;
+        await this.cleanup();
     }
 
     // ============================================================
@@ -212,6 +224,12 @@ class ChatLogManager {
         const mm = String(d.getMonth() + 1).padStart(2, '0');
         const dd = String(d.getDate()).padStart(2, '0');
         return `${yyyy}${mm}${dd}`;
+    }
+
+    _getYesterdayDateString() {
+        const d = new Date();
+        d.setDate(d.getDate() - 1);
+        return this._formatDate(d);
     }
 
     _getLastMonthString() {

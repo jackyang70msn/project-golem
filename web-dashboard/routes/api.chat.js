@@ -2,6 +2,12 @@ const express = require('express');
 
 module.exports = function(server) {
     const router = express.Router();
+    const resolveConvoManager = (instance) => {
+        // Backward/forward compatibility:
+        // - newer core uses "convoManager"
+        // - legacy code might still expose "conversationManager"
+        return instance?.convoManager || instance?.conversationManager || null;
+    };
 
     router.post('/api/chat', async (req, res) => {
         try {
@@ -10,7 +16,14 @@ module.exports = function(server) {
                 return res.status(400).json({ error: 'Missing golemId, message or attachment' });
             }
 
-            if (typeof global.handleDashboardMessage !== 'function') {
+            const index = require('../../index.js');
+            const dashboardMessageHandler =
+                (typeof index.handleDashboardMessage === 'function' && index.handleDashboardMessage) ||
+                (typeof index.handleUnifiedMessage === 'function' && index.handleUnifiedMessage) ||
+                (typeof global.handleDashboardMessage === 'function' && global.handleDashboardMessage) ||
+                null;
+
+            if (!dashboardMessageHandler) {
                 return res.status(503).json({ error: 'Dashboard message handler not ready' });
             }
 
@@ -79,7 +92,7 @@ module.exports = function(server) {
                 golemId
             });
 
-            global.handleDashboardMessage(mockContext, golemId).catch(exp => {
+            dashboardMessageHandler(mockContext, golemId).catch(exp => {
                 console.error('[WebServer] Direct chat error:', exp);
             });
 
@@ -98,10 +111,6 @@ module.exports = function(server) {
             }
 
             const index = require('../../index.js');
-
-            if (typeof global.handleDashboardMessage !== 'function') {
-                return res.status(503).json({ error: 'Dashboard message handler not ready' });
-            }
 
             const mockContext = {
                 platform: 'web',
@@ -181,10 +190,13 @@ module.exports = function(server) {
             });
 
             setTimeout(() => {
-                if (typeof index.handleUnifiedCallback === 'function') {
-                    index.handleUnifiedCallback(mockContext, callback_data, golemId).catch(console.error);
-                } else if (global.handleUnifiedCallback) {
-                    global.handleUnifiedCallback(mockContext, callback_data, golemId).catch(console.error);
+                const callbackHandler =
+                    (typeof index.handleUnifiedCallback === 'function' && index.handleUnifiedCallback) ||
+                    (typeof global.handleUnifiedCallback === 'function' && global.handleUnifiedCallback) ||
+                    null;
+
+                if (callbackHandler) {
+                    callbackHandler(mockContext, callback_data, golemId).catch(console.error);
                 } else {
                     console.error('[WebServer] handleUnifiedCallback not found in index.js exports or global');
                 }
@@ -227,11 +239,12 @@ module.exports = function(server) {
             
             const index = require('../../index.js');
             const instance = index.getOrCreateGolem ? index.getOrCreateGolem(golemId) : null;
-            if (!instance || !instance.conversationManager || !instance.conversationManager.confidenceTracker) {
+            const convoManager = resolveConvoManager(instance);
+            if (!convoManager || !convoManager.confidenceTracker) {
                 return res.status(404).json({ error: 'ConfidenceTracker not found for this golem instance' });
             }
 
-            const stats = await instance.conversationManager.confidenceTracker.getStats();
+            const stats = await convoManager.confidenceTracker.getStats();
             return res.json({ success: true, stats });
         } catch (e) {
             console.error('Failed to fetch metacognition stats:', e);
@@ -246,11 +259,14 @@ module.exports = function(server) {
 
             const index = require('../../index.js');
             const instance = index.getOrCreateGolem ? index.getOrCreateGolem(golemId) : null;
-            if (!instance || !instance.conversationManager || !instance.conversationManager.confidenceTracker) {
+            const convoManager = resolveConvoManager(instance);
+            if (!convoManager || !convoManager.confidenceTracker) {
                 return res.status(404).json({ error: 'ConfidenceTracker not found for this golem instance' });
             }
 
-            const history = await instance.conversationManager.confidenceTracker.getHistory(limit ? parseInt(limit, 10) : 20);
+            const rawLimit = limit ? parseInt(limit, 10) : 20;
+            const parsedLimit = Number.isFinite(rawLimit) ? Math.max(1, Math.min(rawLimit, 500)) : 20;
+            const history = await convoManager.confidenceTracker.getHistory(parsedLimit);
             return res.json({ success: true, history });
         } catch (e) {
             console.error('Failed to fetch metacognition history:', e);

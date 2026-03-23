@@ -10,6 +10,10 @@ const skillIndexManager = require('../managers/SkillIndexManager');
 const { resolveEnabledSkills, OPTIONAL_SKILLS } = require('../skills/skillsConfig');
 const ConfigManager = require('../config');
 
+function getMaxResponseWords() {
+    return Number(ConfigManager?.CONFIG?.MAX_RESPONSE_WORDS) || 0;
+}
+
 class ProtocolFormatter {
     /**
      * 產生短請求 ID (用於信封標記)
@@ -47,6 +51,7 @@ class ProtocolFormatter {
         const TAG_START = ProtocolFormatter.buildStartTag(reqId);
         const TAG_END = ProtocolFormatter.buildEndTag(reqId);
         const systemFingerprint = getSystemFingerprint();
+        const maxResponseWords = getMaxResponseWords();
 
         let observerPrompt = "";
         if (options.isObserver) {
@@ -96,7 +101,7 @@ ${selectedPrompt}
 7. ReAct: If you use [GOLEM_ACTION], DO NOT guess the result in [GOLEM_REPLY]. Wait for Observation.
 8. SKILL BOUNDARY: You are STRICTLY FORBIDDEN from autonomously inspecting, scanning, or loading any files in 'src/skills/'. You DO NOT HAVE A PHYSICAL BODY or FILESYSTEM presence; you only exist within this conversation. Use ONLY the skills provided in the 'CORE SKILL PROTOCOLS' section below. If a skill is not listed there, you DO NOT have it.
 9. WORKSPACE: If you cannot access Google Workspace (@Google Drive/Keep/etc.), explicitly tell the user to enable the extension.
-${ConfigManager.CONFIG.MAX_RESPONSE_WORDS > 0 ? `10. LENGTH: 🚨 STRICT LIMIT 🚨 Keep your ENTIRE reply under ${ConfigManager.CONFIG.MAX_RESPONSE_WORDS} characters/words. Be extremely concise.` : ''}
+${maxResponseWords > 0 ? `10. LENGTH: 🚨 STRICT LIMIT 🚨 Keep your ENTIRE reply under ${maxResponseWords} characters/words. Be extremely concise.` : ''}
 ${observerPrompt}
 [USER INPUT / SYSTEM MESSAGE]
 ${text}`;
@@ -116,6 +121,7 @@ ${text}`;
      */
     static async buildSystemPrompt(forceRefresh = false, golemContext = {}) {
         const now = Date.now();
+        const maxResponseWords = getMaxResponseWords();
         // 如果有 specific user data dir，我們可能不想使用全域 cache，或是將 cache key 改為含 userDataDir
         const cacheKey = golemContext.userDataDir || 'global';
 
@@ -210,7 +216,7 @@ Your response must be strictly divided into these 3 sections:
 - If an action is pending, use: "正在執行 [${systemFingerprint}] 相容指令，請稍候...".
 - Language: Follow user's choice or current system default.
 - Tone: Professional, direct, and concise. Avoid unnecessary roleplay unless requested.
-${ConfigManager.CONFIG.MAX_RESPONSE_WORDS > 0 ? `- Length: 🚨 STRICT LIMIT 🚨 Keep your ENTIRE reply under ${ConfigManager.CONFIG.MAX_RESPONSE_WORDS} characters/words. Be extremely concise.` : ''}
+${maxResponseWords > 0 ? `- Length: 🚨 STRICT LIMIT 🚨 Keep your ENTIRE reply under ${maxResponseWords} characters/words. Be extremely concise.` : ''}
 - 📝 **MENTION RULE**: 當需要提及 (@mention) 或詢問群組中的使用者時，請直接在文字回覆中使用 @userid。
 - 🚫 **BOUNDARY**: 嚴禁將當前平台通訊（Telegram/Discord）視為外部 \`moltbot\` 任務處理。
 

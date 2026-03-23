@@ -109,6 +109,10 @@ class AutonomyManager {
         const nowTime = now.getTime();
         let fileTasks = [];
         const updatedSchedules = [];
+        const promises = fs.promises || {};
+        const statAsync = typeof promises.stat === 'function' ? promises.stat.bind(promises) : null;
+        const readFileAsync = typeof promises.readFile === 'function' ? promises.readFile.bind(promises) : null;
+        const writeFileAsync = typeof promises.writeFile === 'function' ? promises.writeFile.bind(promises) : null;
 
         // --- ✨ 路徑隔離 (Path Isolation) ---
         const logDir = ConfigManager.LOG_BASE_DIR;
@@ -116,13 +120,22 @@ class AutonomyManager {
         const scheduleFile = path.join(logDir, 'schedules.json');
 
         // M-5 Fix: 異步寫入前確保目錄存在
-        await fs.promises.mkdir(path.dirname(scheduleFile), { recursive: true }).catch(() => {});
+        // 測試環境可能會 mock fs 導致 fs.promises 不完整，這裡做相容退化。
+        if (fs.promises && typeof fs.promises.mkdir === 'function') {
+            await fs.promises.mkdir(path.dirname(scheduleFile), { recursive: true }).catch(() => { });
+        } else {
+            try { fs.mkdirSync(path.dirname(scheduleFile), { recursive: true }); } catch (e) { }
+        }
 
         // 1. 讀取並檢查檔案資料庫 (New Path: logs/schedules.json)
-        const stat = await fs.promises.stat(scheduleFile).catch(() => null);
+        const stat = statAsync
+            ? await statAsync(scheduleFile).catch(() => null)
+            : (fs.existsSync(scheduleFile) ? { fallback: true } : null);
         if (stat) {
             try {
-                const rawData = await fs.promises.readFile(scheduleFile, 'utf-8');
+                const rawData = readFileAsync
+                    ? await readFileAsync(scheduleFile, 'utf-8')
+                    : fs.readFileSync(scheduleFile, 'utf-8');
                 if (rawData.trim()) {
                     const schedules = JSON.parse(rawData);
                     schedules.forEach(item => {
@@ -136,7 +149,11 @@ class AutonomyManager {
 
                     // 如果有過期或已處理的，寫回檔案進行更新 (物理移除)
                     if (fileTasks.length > 0) {
-                        await fs.promises.writeFile(scheduleFile, JSON.stringify(updatedSchedules, null, 2));
+                        if (writeFileAsync) {
+                            await writeFileAsync(scheduleFile, JSON.stringify(updatedSchedules, null, 2));
+                        } else {
+                            fs.writeFileSync(scheduleFile, JSON.stringify(updatedSchedules, null, 2));
+                        }
                     }
                 }
             } catch (e) {
@@ -353,29 +370,32 @@ ${summaryContext || "（目前尚無對話摘要）"}
         let sent = false;
 
         // ✅ [Fix] 同步廣播到 Web Dashboard
-        try {
-            const dashboard = require('../../dashboard');
-            if (dashboard && dashboard.webServer) {
-                const notifyText = msgText; // Use msgText as notifyText
-                let payloadType = 'general';
-                let actionData = null;
+        // 測試環境下避免動態 require dashboard 造成額外 server side effects。
+        if (process.env.NODE_ENV !== 'test') {
+            try {
+                const dashboard = require('../../dashboard');
+                if (dashboard && dashboard.webServer) {
+                    const notifyText = msgText; // Use msgText as notifyText
+                    let payloadType = 'general';
+                    let actionData = null;
 
-                if (opts.reply_markup && opts.reply_markup.inline_keyboard) {
-                    payloadType = 'approval';
-                    actionData = opts.reply_markup.inline_keyboard[0];
+                    if (opts.reply_markup && opts.reply_markup.inline_keyboard) {
+                        payloadType = 'approval';
+                        actionData = opts.reply_markup.inline_keyboard[0];
+                    }
+
+                    dashboard.webServer.broadcastLog({
+                        time: new Date().toLocaleTimeString('zh-TW', { hour12: false }),
+                        msg: `[${this.golemId}] ${notifyText}`,
+                        type: payloadType,
+                        raw: notifyText,
+                        actionData,
+                        golemId: this.golemId
+                    });
                 }
-
-                dashboard.webServer.broadcastLog({
-                    time: new Date().toLocaleTimeString('zh-TW', { hour12: false }),
-                    msg: `[${this.golemId}] ${notifyText}`,
-                    type: payloadType,
-                    raw: notifyText,
-                    actionData,
-                    golemId: this.golemId
-                });
+            } catch (e) {
+                // 忽略 Dashboard 未載入的錯誤
             }
-        } catch (e) {
-            // 忽略 Dashboard 未載入的錯誤
         }
 
         if (this.tgBot && tgTargetId) {
