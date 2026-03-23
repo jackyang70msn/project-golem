@@ -241,6 +241,10 @@ class ChatLogManager {
     // 🏛️ Tier 0 → Tier 1: Hourly → Daily 壓縮
     // ============================================================
     async compressLogsForDate(dateString, brain, force = false) {
+        if (!this._isInitialized || !this.db) {
+            console.warn(`⚠️ [LogManager] 尚未初始化，無法執行 Date 壓縮 (${dateString})`);
+            return;
+        }
         console.log(`📦 [LogManager][${this.golemId}] 檢查 ${dateString} 的日誌狀態...`);
         const messages = await this.allAsync(`SELECT * FROM messages WHERE date_string = ? ORDER BY timestamp ASC`, [dateString]);
         
@@ -267,6 +271,10 @@ class ChatLogManager {
     // 🏛️ Tier 1 → Tier 2: Daily → Monthly 壓縮
     // ============================================================
     async compressMonthly(monthString, brain) {
+        if (!this._isInitialized || !this.db) {
+            console.warn(`⚠️ [LogManager] 尚未初始化，無法執行 Monthly 壓縮 (${monthString})`);
+            return;
+        }
         console.log(`📅 [LogManager][${this.golemId}] 開始 ${monthString} 月度壓縮...`);
         
         const existing = await this.getAsync(`SELECT id FROM summaries WHERE tier = 'monthly' AND date_string = ?`, [monthString]);
@@ -293,6 +301,10 @@ class ChatLogManager {
     // 🏛️ Tier 2 → Tier 3: Monthly → Yearly 壓縮
     // ============================================================
     async compressYearly(yearString, brain) {
+        if (!this._isInitialized || !this.db) {
+            console.warn(`⚠️ [LogManager] 尚未初始化，無法執行 Yearly 壓縮 (${yearString})`);
+            return;
+        }
         console.log(`📆 [LogManager][${this.golemId}] 開始 ${yearString} 年度壓縮...`);
         
         const existing = await this.getAsync(`SELECT id FROM summaries WHERE tier = 'yearly' AND date_string = ?`, [yearString]);
@@ -314,6 +326,10 @@ class ChatLogManager {
     // 🏛️ Tier 3 → Tier 4: Yearly → Era 壓縮
     // ============================================================
     async compressEra(decadeString, brain) {
+        if (!this._isInitialized || !this.db) {
+            console.warn(`⚠️ [LogManager] 尚未初始化，無法執行 Era 壓縮 (${decadeString})`);
+            return;
+        }
         console.log(`🏛️ [LogManager][${this.golemId}] 開始 ${decadeString} 紀元壓縮...`);
         const startYear = parseInt(decadeString.replace('decade_', ''));
         const endYear = startYear + 9;

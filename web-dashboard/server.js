@@ -248,8 +248,34 @@ class WebServer {
             this.app.get(/\/dashboard.*/, (req, res, next) => {
                 const normalizedPath = req.path.replace(/\/$/, "");
                 // 排除設定頁面本身與 API 請求，避免無限重定向
-                if (normalizedPath === '/dashboard/system-setup' || req.path.startsWith('/api/')) {
+                if (normalizedPath === '/dashboard/system-setup' || normalizedPath === '/dashboard/login' || req.path.startsWith('/api/')) {
                     return next();
+                }
+
+                // 🚦 遠端存取密碼驗證
+                if (this.allowRemote) {
+                    const remotePassword = process.env.REMOTE_ACCESS_PASSWORD;
+                    if (remotePassword && remotePassword.trim() !== '') {
+                        // 判斷是否為本地端連線
+                        const clientIp = req.ip || req.connection.remoteAddress || '';
+                        const isLocalhost = clientIp.includes('127.0.0.1') || clientIp === '::1' || clientIp.includes('::ffff:127.0.0.1');
+                        
+                        // 若為遠端連線，則檢查 Authorization Cookie
+                        if (!isLocalhost) {
+                            const cookies = req.headers.cookie;
+                            let isAuthenticated = false;
+                            if (cookies) {
+                                const cookieObj = Object.fromEntries(cookies.split(';').map(c => c.trim().split('=')));
+                                if (cookieObj.golem_auth_token === 'verified') {
+                                    isAuthenticated = true;
+                                }
+                            }
+                            if (!isAuthenticated) {
+                                console.log(`🔒 [WebServer] Blocked unauthorized remote access to ${req.path} from IP: ${clientIp}`);
+                                return res.redirect('/dashboard/login');
+                            }
+                        }
+                    }
                 }
 
                 try {
@@ -568,7 +594,8 @@ class WebServer {
                     golemEmbeddingProvider: envVars.GOLEM_EMBEDDING_PROVIDER || 'gemini',
                     golemLocalEmbeddingModel: envVars.GOLEM_LOCAL_EMBEDDING_MODEL || 'Xenova/bge-small-zh-v1.5',
                     golemMode: 'SINGLE',
-                    allowRemoteAccess: this.allowRemote
+                    allowRemoteAccess: this.allowRemote,
+                    hasRemotePassword: !!(envVars.REMOTE_ACCESS_PASSWORD && envVars.REMOTE_ACCESS_PASSWORD.trim() !== '')
                 });
             } catch (e) {
                 console.error('[WebServer] Failed to get system config:', e);
@@ -578,7 +605,7 @@ class WebServer {
 
         this.app.post('/api/system/config', (req, res) => {
             try {
-                const { geminiApiKeys, userDataDir, golemMemoryMode, golemEmbeddingProvider, golemLocalEmbeddingModel, golemMode, allowRemoteAccess } = req.body;
+                const { geminiApiKeys, userDataDir, golemMemoryMode, golemEmbeddingProvider, golemLocalEmbeddingModel, golemMode, allowRemoteAccess, remoteAccessPassword } = req.body;
                 const EnvManager = require('../src/utils/EnvManager');
                 const ConfigManager = require('../src/config/index');
 
@@ -590,6 +617,7 @@ class WebServer {
                 if (golemEmbeddingProvider) updates.GOLEM_EMBEDDING_PROVIDER = golemEmbeddingProvider;
                 if (golemLocalEmbeddingModel) updates.GOLEM_LOCAL_EMBEDDING_MODEL = golemLocalEmbeddingModel;
                 if (allowRemoteAccess !== undefined) updates.ALLOW_REMOTE_ACCESS = String(allowRemoteAccess);
+                if (remoteAccessPassword !== undefined) updates.REMOTE_ACCESS_PASSWORD = String(remoteAccessPassword).trim();
                 updates.GOLEM_MODE = 'SINGLE';
 
                 if (Object.keys(updates).length > 0) {
@@ -618,6 +646,32 @@ class WebServer {
                 return res.json({ success: false, message: 'No updates provided.' });
             } catch (e) {
                 console.error('[WebServer] Failed to update system config:', e);
+                return res.status(500).json({ error: e.message });
+            }
+        });
+
+        // ─── Remote Access Login ──────────────────────────────────────────
+        this.app.post('/api/system/login', (req, res) => {
+            try {
+                const { password } = req.body;
+                const expectedPassword = process.env.REMOTE_ACCESS_PASSWORD || '';
+                
+                if (!expectedPassword || expectedPassword.trim() === '') {
+                    return res.json({ success: true, message: 'Authentication not required.' });
+                }
+
+                if (password === expectedPassword) {
+                    res.cookie('golem_auth_token', 'verified', {
+                        maxAge: 7 * 24 * 60 * 60 * 1000,
+                        httpOnly: false,
+                        sameSite: 'lax',
+                    });
+                    return res.json({ success: true, message: 'Login successful.' });
+                }
+
+                return res.status(401).json({ success: false, message: '密碼錯誤 (Invalid password)' });
+            } catch (e) {
+                console.error('[WebServer] Login failed:', e);
                 return res.status(500).json({ error: e.message });
             }
         });

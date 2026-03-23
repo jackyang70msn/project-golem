@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import {
     Key, HardDrive, Brain, Eye, EyeOff, AlertTriangle,
-    Sparkles, ExternalLink, CheckCircle2, ArrowRight
+    Sparkles, ExternalLink, CheckCircle2, ArrowRight, Lock
 } from "lucide-react";
 import Link from "next/link";
 import { useGolem } from "@/components/GolemContext";
@@ -60,6 +60,7 @@ export default function SystemSetupPage() {
     const [embeddingProvider, setEmbeddingProvider] = useState<"gemini" | "local">("local");
     const [localEmbeddingModel, setLocalEmbeddingModel] = useState("Xenova/bge-small-zh-v1.5");
     const [allowRemoteAccess, setAllowRemoteAccess] = useState(false);
+    const [remoteAccessPassword, setRemoteAccessPassword] = useState("");
     const [isLoading, setIsLoading] = useState(false);
     const [isFetching, setIsFetching] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -96,7 +97,8 @@ export default function SystemSetupPage() {
                     golemEmbeddingProvider: "local",
                     golemLocalEmbeddingModel: localEmbeddingModel,
                     golemMode: golemMode,
-                    allowRemoteAccess: allowRemoteAccess
+                    allowRemoteAccess: allowRemoteAccess,
+                    remoteAccessPassword: remoteAccessPassword
                 }),
             });
             const data = await res.json();
@@ -265,12 +267,33 @@ export default function SystemSetupPage() {
                         </div>
 
                         {allowRemoteAccess && (
-                            <div className="mt-4 p-3 bg-amber-950/20 border border-amber-900/30 rounded-lg flex items-start gap-2 animate-in fade-in zoom-in-95">
-                                <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
-                                <p className="text-[10px] text-amber-200/70 leading-relaxed">
-                                    ⚠️ 警告：開啟遠端存取會降低安全性。請確保您在受信任的網路環境中，或已設置適當的防火牆保護。
-                                </p>
-                            </div>
+                            <>
+                                <div className="mt-5 animate-in fade-in zoom-in-95">
+                                    <label className="block text-sm font-medium text-gray-400 mb-2">
+                                        <Lock className="w-3.5 h-3.5 inline mr-1.5 text-gray-500" />
+                                        自定義遠端存取密碼 (選填)
+                                    </label>
+                                    <div className="relative">
+                                        <input
+                                            type="password"
+                                            value={remoteAccessPassword}
+                                            onChange={e => setRemoteAccessPassword(e.target.value)}
+                                            className="w-full bg-gray-950 border border-gray-800 rounded-xl px-4 py-3 text-white font-mono text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 transition-all pr-10"
+                                            placeholder="若留空，則遠端存取不需要密碼"
+                                            autoComplete="new-password"
+                                        />
+                                    </div>
+                                    <p className="text-[10px] text-gray-500 mt-1.5 leading-relaxed">
+                                        設定密碼後，非本機連線皆須輸入此密碼才可登入控制台。
+                                    </p>
+                                </div>
+                                <div className="mt-4 p-3 bg-amber-950/20 border border-amber-900/30 rounded-lg flex items-start gap-2 animate-in fade-in zoom-in-95">
+                                    <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
+                                    <p className="text-[10px] text-amber-200/70 leading-relaxed">
+                                        ⚠️ 警告：開啟遠端存取會降低安全性。請確保您在受信任的網路環境中，或已設置適當的密碼保護。
+                                    </p>
+                                </div>
+                            </>
                         )}
                     </div>
 

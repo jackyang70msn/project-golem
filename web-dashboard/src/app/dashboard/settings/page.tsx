@@ -1391,6 +1391,20 @@ export default function SettingsPage() {
                                                 </div>
                                                 <p className="text-xs text-muted-foreground mt-1">開啟後可允許區域網路或其他 IP 連線。若關閉則僅限 localhost。</p>
                                             </div>
+
+                                            {config.env.ALLOW_REMOTE_ACCESS === 'true' && (
+                                                <div className="mt-2 animate-in fade-in zoom-in-95">
+                                                    <SettingField 
+                                                        label="自定義遠端存取密碼 (選填)" 
+                                                        keyName="REMOTE_ACCESS_PASSWORD" 
+                                                        isSecret 
+                                                        placeholder="若留空，則遠端存取不需要密碼" 
+                                                        desc="設定密碼後，非本機連線皆須輸入此密碼才可登入控制台。"
+                                                        value={config.env.REMOTE_ACCESS_PASSWORD || ""} 
+                                                        onChange={(val) => handleChangeEnv("REMOTE_ACCESS_PASSWORD", val)} 
+                                                    />
+                                                </div>
+                                            )}
                                         </div>
 
                                         <div className="pt-4 border-t border-border">

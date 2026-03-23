@@ -349,6 +349,10 @@ function getOrCreateGolem() {
         if (instance) {
             const mgr = instance.brain.chatLogManager;
             if (mgr) {
+                if (!mgr._isInitialized) {
+                    console.log(`ℹ️ [Scheduler] ChatLogManager 尚未初始化，略過本次排程`);
+                    return;
+                }
                 console.log(`📦 [LogManager] 檢查日誌狀態...`);
                 if (month === 1 && day === 1 && year % 10 === 0) {
                     const lastDecade = mgr._getLastDecadeString();
