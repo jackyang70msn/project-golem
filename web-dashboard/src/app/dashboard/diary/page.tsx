@@ -22,6 +22,7 @@ import {
     ArchiveRestore,
     Download,
     AlertTriangle,
+    Clock3,
 } from "lucide-react";
 import { useGolem } from "@/components/GolemContext";
 import { apiGet, apiPostWrite, apiWrite } from "@/lib/api-client";
@@ -160,12 +161,32 @@ type DiaryBackupMutationResponse = {
     backupCleanup?: DiaryBackupCleanup;
 };
 
+type DiaryAutoMessageSchedule = {
+    enabled?: boolean;
+    time?: string;
+    timezone?: string;
+    updatedAt?: string;
+};
+
+type DiaryAutoMessageNotice = {
+    id: string;
+    text: string;
+    dueAt: string;
+    createdAt: string;
+};
+
+type DiaryAutoMessageState = {
+    schedule?: DiaryAutoMessageSchedule;
+    pendingNotice?: DiaryAutoMessageNotice | null;
+};
+
 type DiaryResponse = {
     success?: boolean;
     entries?: DiaryEntry[];
     total?: number;
     stats?: DiaryStats;
     rotation?: DiaryRotation;
+    autoMessage?: DiaryAutoMessageState;
     error?: string;
 };
 
@@ -183,28 +204,15 @@ type DiaryMutationResponse = {
         from?: string;
         to?: string;
     };
+    autoMessage?: DiaryAutoMessageState;
 };
 
-const ENTRY_TYPE_OPTIONS: Array<{ value: DiaryEntryType; label: string; hint: string }> = [
-    { value: "user_diary", label: "使用者日記", hint: "你寫給 AI 的心情與想法" },
-    { value: "ai_diary", label: "AI 日記", hint: "AI 以第一人稱記錄今天" },
-    { value: "ai_thought", label: "AI 對使用者的想法", hint: "AI 想對你說的話" },
-];
-
-const FILTER_OPTIONS: Array<{ value: "all" | DiaryEntryType | "threaded"; label: string }> = [
-    { value: "all", label: "全部" },
-    { value: "user_diary", label: "使用者日記" },
-    { value: "ai_diary", label: "AI 日記" },
-    { value: "ai_thought", label: "AI 想法" },
-    { value: "ai_summary", label: "AI 摘要" },
-    { value: "threaded", label: "迭代串接" },
-];
-
-const VIEW_OPTIONS: Array<{ value: FeedViewMode; label: string }> = [
-    { value: "timeline", label: "時間軸" },
-    { value: "threads", label: "迭代對話樹" },
-    { value: "weekly", label: "每週摘要歷史" },
-];
+type DiaryAutoMessageMutationResponse = {
+    success?: boolean;
+    golemId?: string;
+    autoMessage?: DiaryAutoMessageState;
+    error?: string;
+};
 
 function typeBadge(entryType: DiaryEntryType) {
     if (entryType === "ai_diary") {
@@ -217,13 +225,6 @@ function typeBadge(entryType: DiaryEntryType) {
         return "bg-rose-500/10 border-rose-500/30 text-rose-300";
     }
     return "bg-emerald-500/10 border-emerald-500/30 text-emerald-400";
-}
-
-function typeLabel(entryType: DiaryEntryType) {
-    if (entryType === "ai_diary") return "AI 日記";
-    if (entryType === "ai_thought") return "AI 想法";
-    if (entryType === "ai_summary") return "AI 摘要";
-    return "使用者日記";
 }
 
 function emptyStats(): DiaryStats {
@@ -261,6 +262,14 @@ function formatSigned(value: number) {
 function toTimestamp(value: string) {
     const parsed = Date.parse(value);
     return Number.isNaN(parsed) ? 0 : parsed;
+}
+
+function normalizeTimeOfDay(value: string) {
+    const matched = String(value || "").trim().match(/^(\d{1,2}):(\d{1,2})$/);
+    if (!matched) return "21:00";
+    const hour = Math.max(0, Math.min(23, Number(matched[1])));
+    const minute = Math.max(0, Math.min(59, Number(matched[2])));
+    return `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
 }
 
 function extractWeekTagLabel(entry: DiaryEntry) {
@@ -328,6 +337,11 @@ export default function DiaryPage() {
     const [feedView, setFeedView] = useState<FeedViewMode>("timeline");
     const [feedFilter, setFeedFilter] = useState<"all" | DiaryEntryType | "threaded">("all");
     const [selectedWeeklySummaryId, setSelectedWeeklySummaryId] = useState<string | null>(null);
+    const [autoMessageEnabled, setAutoMessageEnabled] = useState(false);
+    const [autoMessageTime, setAutoMessageTime] = useState("21:00");
+    const [autoMessageTimezone, setAutoMessageTimezone] = useState("Asia/Taipei");
+    const [pendingAutoMessageNotice, setPendingAutoMessageNotice] = useState<DiaryAutoMessageNotice | null>(null);
+    const [isSavingAutoMessage, setIsSavingAutoMessage] = useState(false);
 
     const filterOptions = useMemo<Array<{ value: "all" | DiaryEntryType | "threaded"; label: string }>>(() => ([
         { value: "all", label: isEnglish ? "All" : "全部" },
@@ -357,6 +371,19 @@ export default function DiaryPage() {
         return `${path}${divider}golemId=${encodeURIComponent(activeGolem)}`;
     }, [activeGolem]);
 
+    const applyAutoMessageState = useCallback((state?: DiaryAutoMessageState | null) => {
+        if (!state) return;
+        const schedule = state.schedule || {};
+        setAutoMessageEnabled(Boolean(schedule.enabled));
+        if (typeof schedule.time === "string" && schedule.time.trim()) {
+            setAutoMessageTime(normalizeTimeOfDay(schedule.time));
+        }
+        if (typeof schedule.timezone === "string" && schedule.timezone.trim()) {
+            setAutoMessageTimezone(schedule.timezone.trim());
+        }
+        setPendingAutoMessageNotice(state.pendingNotice || null);
+    }, []);
+
     const loadDiary = useCallback(async () => {
         setIsLoading(true);
         try {
@@ -365,22 +392,56 @@ export default function DiaryPage() {
                 setEntries(data.entries);
                 if (data.stats) setStats(data.stats);
                 if (data.rotation) setRotation(data.rotation);
+                applyAutoMessageState(data.autoMessage || null);
                 return;
             }
             setEntries([]);
             setStats(emptyStats());
             setRotation(null);
+            setPendingAutoMessageNotice(null);
         } catch (error: unknown) {
             const message = error instanceof Error ? error.message : "讀取失敗";
             toast.error("讀取日記失敗", message);
         } finally {
             setIsLoading(false);
         }
-    }, [toast, withGolemId]);
+    }, [applyAutoMessageState, toast, withGolemId]);
 
     useEffect(() => {
         loadDiary();
     }, [loadDiary]);
+
+    const loadAutoMessageState = useCallback(async (silent = true) => {
+        if (!activeGolem) {
+            setPendingAutoMessageNotice(null);
+            return;
+        }
+        try {
+            const data = await apiGet<DiaryAutoMessageMutationResponse>(
+                withGolemId("/api/diary/auto-message")
+            );
+            if (!data.success) {
+                if (!silent) {
+                    toast.error("讀取主動訊息狀態失敗", data.error || "無法取得排程狀態。");
+                }
+                return;
+            }
+            applyAutoMessageState(data.autoMessage || null);
+        } catch (error: unknown) {
+            if (!silent) {
+                const message = error instanceof Error ? error.message : "讀取失敗";
+                toast.error("讀取主動訊息狀態失敗", message);
+            }
+        }
+    }, [activeGolem, applyAutoMessageState, toast, withGolemId]);
+
+    useEffect(() => {
+        if (!activeGolem) return;
+        const timer = window.setInterval(() => {
+            void loadAutoMessageState(true);
+        }, 45 * 1000);
+        return () => window.clearInterval(timer);
+    }, [activeGolem, loadAutoMessageState]);
 
     const loadBackupAndRotation = useCallback(async (silent = true) => {
         if (!activeGolem) {
@@ -526,6 +587,9 @@ export default function DiaryPage() {
                 targetType === "ai_diary" ? "已新增 AI 日記。" : "已新增 AI 對你的想法。"
             );
             if (!created) return;
+            if (data.autoMessage) {
+                applyAutoMessageState(data.autoMessage);
+            }
             setReplyTargetId(null);
         } catch (error: unknown) {
             const message = error instanceof Error ? error.message : "生成失敗";
@@ -612,6 +676,49 @@ export default function DiaryPage() {
             toast.error("每週摘要失敗", message);
         } finally {
             setIsGeneratingWeeklySummary(false);
+        }
+    };
+
+    const handleSaveAutoMessageSchedule = async () => {
+        if (!activeGolem) {
+            toast.warning("尚未選擇 Golem", "請先在側邊欄選擇一個活躍節點。");
+            return;
+        }
+
+        setIsSavingAutoMessage(true);
+        try {
+            const payload = {
+                enabled: autoMessageEnabled,
+                time: normalizeTimeOfDay(autoMessageTime),
+                timezone: String(autoMessageTimezone || "").trim() || Intl.DateTimeFormat().resolvedOptions().timeZone || "Asia/Taipei",
+            };
+
+            const data = await apiWrite<DiaryAutoMessageMutationResponse>(
+                withGolemId("/api/diary/auto-message"),
+                {
+                    method: "PUT",
+                    body: payload,
+                    retry: { profile: "write" },
+                }
+            );
+
+            if (!data.success) {
+                toast.error("儲存排程失敗", data.error || "無法更新 AI 主動訊息排程。");
+                return;
+            }
+
+            applyAutoMessageState(data.autoMessage || null);
+            toast.success(
+                autoMessageEnabled ? "排程已啟用" : "排程已停用",
+                autoMessageEnabled
+                    ? `AI 將每天 ${normalizeTimeOfDay(autoMessageTime)} 產生主動訊息提醒。`
+                    : "已停止每日主動訊息提醒。"
+            );
+        } catch (error: unknown) {
+            const message = error instanceof Error ? error.message : "儲存失敗";
+            toast.error("儲存排程失敗", message);
+        } finally {
+            setIsSavingAutoMessage(false);
         }
     };
 
@@ -1237,6 +1344,67 @@ export default function DiaryPage() {
                                 {isGeneratingWeeklySummary ? (isEnglish ? "Summarizing..." : "摘要整理中...") : (isEnglish ? "Generate Weekly Summary" : "生成每週摘要")}
                             </button>
                         </div>
+                    </div>
+
+                    <div className="rounded-2xl border border-border bg-card/50 p-4 space-y-3">
+                        <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                            <Clock3 className="w-4 h-4 text-amber-300" />
+                            {isEnglish ? "AI Proactive Message Schedule" : "AI 主動訊息排程"}
+                        </h2>
+                        <p className="text-xs text-muted-foreground">
+                            {isEnglish
+                                ? "At the scheduled time, a bell reminder appears first. Clicking it triggers AI diary generation."
+                                : "到達排程時間時，會先出現鈴鐺提醒；點擊後才會觸發 AI 生成日記。"}
+                        </p>
+                        <div className="grid grid-cols-1 md:grid-cols-[auto_1fr_auto] gap-2 items-center">
+                            <button
+                                onClick={() => setAutoMessageEnabled((prev) => !prev)}
+                                disabled={isSavingAutoMessage}
+                                className={cn(
+                                    "px-3 py-2 rounded-xl border text-xs font-medium transition-colors",
+                                    autoMessageEnabled
+                                        ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-300"
+                                        : "border-border bg-secondary/35 text-muted-foreground hover:text-foreground",
+                                    isSavingAutoMessage && "opacity-60 cursor-not-allowed"
+                                )}
+                            >
+                                {autoMessageEnabled ? (isEnglish ? "Enabled" : "已啟用") : (isEnglish ? "Disabled" : "已停用")}
+                            </button>
+                            <input
+                                type="time"
+                                value={autoMessageTime}
+                                onChange={(event) => setAutoMessageTime(normalizeTimeOfDay(event.target.value))}
+                                disabled={!autoMessageEnabled || isSavingAutoMessage}
+                                className="w-full bg-secondary/40 border border-border rounded-xl px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 disabled:opacity-50 disabled:cursor-not-allowed"
+                            />
+                            <button
+                                onClick={handleSaveAutoMessageSchedule}
+                                disabled={isSavingAutoMessage}
+                                className={cn(
+                                    "px-3 py-2 rounded-xl border border-primary/35 bg-primary/10 hover:bg-primary/20 text-primary text-sm",
+                                    isSavingAutoMessage && "opacity-60 cursor-not-allowed"
+                                )}
+                            >
+                                {isSavingAutoMessage ? (isEnglish ? "Saving..." : "儲存中...") : (isEnglish ? "Save Schedule" : "儲存排程")}
+                            </button>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-[1fr_auto] gap-2 items-center">
+                            <input
+                                value={autoMessageTimezone}
+                                onChange={(event) => setAutoMessageTimezone(event.target.value)}
+                                placeholder="Asia/Taipei"
+                                className="w-full bg-secondary/35 border border-border rounded-xl px-3 py-2 text-xs text-foreground/90 focus:outline-none focus:ring-2 focus:ring-primary/20"
+                            />
+                            <span className="text-[11px] text-muted-foreground">
+                                {isEnglish ? "Timezone (optional)" : "時區（可選）"}
+                            </span>
+                        </div>
+                        {pendingAutoMessageNotice && (
+                            <p className="text-xs text-amber-200 border border-amber-500/25 bg-amber-500/10 rounded-lg px-2.5 py-2">
+                                {isEnglish ? "Pending reminder:" : "待讀提醒："}
+                                {pendingAutoMessageNotice.text} · {formatTime(pendingAutoMessageNotice.dueAt)}
+                            </p>
+                        )}
                     </div>
 
                     <div className="rounded-2xl border border-border bg-card/50 p-4 space-y-3">

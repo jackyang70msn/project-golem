@@ -44,6 +44,12 @@ const AUTO_WEEKLY_TAG = 'rotate_weekly';
 const AUTO_MONTHLY_TAG = 'rotate_monthly';
 const AUTO_YEARLY_TAG = 'rotate_yearly';
 const PERIOD_PREFIX = 'period_';
+const AUTO_MESSAGE_SCHEDULE_META_KEY = 'auto_message_schedule_v1';
+const AUTO_MESSAGE_PENDING_META_KEY = 'auto_message_pending_v1';
+const AUTO_MESSAGE_LAST_DUE_META_KEY = 'auto_message_last_due_ts_v1';
+const AUTO_MESSAGE_DEFAULT_TIME = '21:00';
+const AUTO_MESSAGE_DEFAULT_TZ = String(process.env.TZ || 'Asia/Taipei').trim() || 'Asia/Taipei';
+const AUTO_MESSAGE_DEFAULT_TEXT = 'AI 想對你說的話';
 
 const BOND_LEVELS = [
     { label: '萌芽', min: 0 },
@@ -56,6 +62,8 @@ const BOND_LEVELS = [
 const rotateCheckpointByPath = new Map();
 const diaryDbStateByPath = new Map();
 let sqlite3Instance = null;
+let autoMessageSweepTimer = null;
+let autoMessageSweepRunning = false;
 
 function getSqlite3() {
     if (sqlite3Instance) return sqlite3Instance;
@@ -117,6 +125,69 @@ function normalizeTags(value) {
         if (tags.length >= ENTRY_TAG_MAX) break;
     }
     return tags;
+}
+
+function normalizeTimeOfDay(value) {
+    const raw = String(value || '').trim();
+    const matched = raw.match(/^(\d{1,2}):(\d{1,2})$/);
+    if (!matched) return AUTO_MESSAGE_DEFAULT_TIME;
+
+    const hour = Number.parseInt(matched[1], 10);
+    const minute = Number.parseInt(matched[2], 10);
+    if (!Number.isFinite(hour) || !Number.isFinite(minute)) return AUTO_MESSAGE_DEFAULT_TIME;
+
+    const safeHour = Math.max(0, Math.min(23, hour));
+    const safeMinute = Math.max(0, Math.min(59, minute));
+    return `${String(safeHour).padStart(2, '0')}:${String(safeMinute).padStart(2, '0')}`;
+}
+
+function normalizeTimezone(value) {
+    const raw = String(value || '').trim();
+    return raw ? raw.slice(0, 80) : AUTO_MESSAGE_DEFAULT_TZ;
+}
+
+function normalizeAutoMessageSchedule(value) {
+    const raw = value && typeof value === 'object' ? value : {};
+    const updatedAtRaw = String(raw.updatedAt || '').trim();
+    const updatedAt = updatedAtRaw && !Number.isNaN(Date.parse(updatedAtRaw))
+        ? new Date(updatedAtRaw).toISOString()
+        : new Date().toISOString();
+
+    return {
+        enabled: raw.enabled === true,
+        time: normalizeTimeOfDay(raw.time),
+        timezone: normalizeTimezone(raw.timezone),
+        updatedAt,
+    };
+}
+
+function normalizeAutoMessageText(value) {
+    const text = String(value || '').replace(/\s+/g, ' ').trim();
+    return text ? text.slice(0, 80) : AUTO_MESSAGE_DEFAULT_TEXT;
+}
+
+function normalizeAutoMessageNotice(value) {
+    if (!value || typeof value !== 'object') return null;
+    const raw = value;
+    const id = String(raw.id || '').trim().slice(0, 120);
+    if (!id) return null;
+
+    const dueAtRaw = String(raw.dueAt || '').trim();
+    const dueAt = dueAtRaw && !Number.isNaN(Date.parse(dueAtRaw))
+        ? new Date(dueAtRaw).toISOString()
+        : new Date().toISOString();
+
+    const createdAtRaw = String(raw.createdAt || '').trim();
+    const createdAt = createdAtRaw && !Number.isNaN(Date.parse(createdAtRaw))
+        ? new Date(createdAtRaw).toISOString()
+        : new Date().toISOString();
+
+    return {
+        id,
+        text: normalizeAutoMessageText(raw.text),
+        dueAt,
+        createdAt,
+    };
 }
 
 function normalizeEntry(raw) {
@@ -421,6 +492,199 @@ async function writeEntries(storage, entries) {
         await state.run('ROLLBACK');
         throw error;
     }
+}
+
+async function readDiaryMetaValue(storage, key) {
+    const state = await ensureDiaryDb(storage);
+    const row = await state.get('SELECT value FROM diary_meta WHERE key = ?', [String(key || '').trim()]);
+    if (!row || row.value == null) return '';
+    return String(row.value);
+}
+
+async function writeDiaryMetaValue(storage, key, value) {
+    const state = await ensureDiaryDb(storage);
+    const metaKey = String(key || '').trim();
+    if (!metaKey) return;
+
+    if (value == null) {
+        await state.run('DELETE FROM diary_meta WHERE key = ?', [metaKey]);
+        return;
+    }
+
+    await state.run(
+        'INSERT OR REPLACE INTO diary_meta(key, value) VALUES (?, ?)',
+        [metaKey, String(value)]
+    );
+}
+
+async function readAutoMessageSchedule(storage) {
+    const raw = await readDiaryMetaValue(storage, AUTO_MESSAGE_SCHEDULE_META_KEY);
+    if (!raw) {
+        return normalizeAutoMessageSchedule({
+            enabled: false,
+            time: AUTO_MESSAGE_DEFAULT_TIME,
+            timezone: AUTO_MESSAGE_DEFAULT_TZ,
+            updatedAt: new Date().toISOString(),
+        });
+    }
+    try {
+        const parsed = JSON.parse(raw);
+        return normalizeAutoMessageSchedule(parsed);
+    } catch {
+        return normalizeAutoMessageSchedule({
+            enabled: false,
+            time: AUTO_MESSAGE_DEFAULT_TIME,
+            timezone: AUTO_MESSAGE_DEFAULT_TZ,
+            updatedAt: new Date().toISOString(),
+        });
+    }
+}
+
+async function writeAutoMessageSchedule(storage, scheduleLike) {
+    const schedule = normalizeAutoMessageSchedule({
+        ...(scheduleLike && typeof scheduleLike === 'object' ? scheduleLike : {}),
+        updatedAt: new Date().toISOString(),
+    });
+    await writeDiaryMetaValue(storage, AUTO_MESSAGE_SCHEDULE_META_KEY, JSON.stringify(schedule));
+    return schedule;
+}
+
+async function readAutoMessagePendingNotice(storage) {
+    const raw = await readDiaryMetaValue(storage, AUTO_MESSAGE_PENDING_META_KEY);
+    if (!raw) return null;
+    try {
+        return normalizeAutoMessageNotice(JSON.parse(raw));
+    } catch {
+        return null;
+    }
+}
+
+async function clearAutoMessagePendingNotice(storage) {
+    await writeDiaryMetaValue(storage, AUTO_MESSAGE_PENDING_META_KEY, null);
+}
+
+async function readAutoMessageLastDueTs(storage) {
+    const raw = await readDiaryMetaValue(storage, AUTO_MESSAGE_LAST_DUE_META_KEY);
+    const parsed = Number(raw || 0);
+    if (!Number.isFinite(parsed) || parsed <= 0) return 0;
+    return Math.floor(parsed);
+}
+
+async function writeAutoMessageLastDueTs(storage, ts) {
+    const parsed = Number(ts || 0);
+    if (!Number.isFinite(parsed) || parsed <= 0) return;
+    await writeDiaryMetaValue(storage, AUTO_MESSAGE_LAST_DUE_META_KEY, String(Math.floor(parsed)));
+}
+
+function toPseudoDateInTimezone(nowTs, timezone) {
+    const now = new Date(nowTs);
+    const safeTz = normalizeTimezone(timezone);
+    try {
+        const localized = now.toLocaleString('en-US', {
+            timeZone: safeTz,
+            hour12: false,
+        });
+        const pseudo = new Date(localized);
+        if (Number.isNaN(pseudo.getTime())) return now;
+        return pseudo;
+    } catch {
+        return now;
+    }
+}
+
+function computeLatestDueTimestamp(timeOfDay, nowTs = Date.now(), timezone = AUTO_MESSAGE_DEFAULT_TZ) {
+    const safeTime = normalizeTimeOfDay(timeOfDay);
+    const [hourPart, minutePart] = safeTime.split(':');
+    const hour = Number.parseInt(hourPart, 10);
+    const minute = Number.parseInt(minutePart, 10);
+
+    const pseudoNow = toPseudoDateInTimezone(nowTs, timezone);
+    const candidate = new Date(pseudoNow.getTime());
+    candidate.setHours(hour, minute, 0, 0);
+    if (candidate.getTime() > pseudoNow.getTime()) {
+        candidate.setDate(candidate.getDate() - 1);
+    }
+
+    const offsetMs = nowTs - pseudoNow.getTime();
+    return candidate.getTime() + offsetMs;
+}
+
+async function getAutoMessageState(storage, options = {}) {
+    const schedule = await readAutoMessageSchedule(storage);
+
+    if (schedule.enabled !== true) {
+        if (options.syncDue) {
+            await clearAutoMessagePendingNotice(storage);
+        }
+        return {
+            schedule,
+            pendingNotice: null,
+        };
+    }
+
+    let pendingNotice = await readAutoMessagePendingNotice(storage);
+    if (pendingNotice) {
+        return {
+            schedule,
+            pendingNotice,
+        };
+    }
+
+    if (options.syncDue) {
+        const dueTs = computeLatestDueTimestamp(schedule.time, Date.now(), schedule.timezone);
+        const lastDueTs = await readAutoMessageLastDueTs(storage);
+        if (dueTs > 0 && dueTs > lastDueTs) {
+            pendingNotice = {
+                id: `auto_message_${storage.safeGolemId}_${dueTs}`,
+                text: AUTO_MESSAGE_DEFAULT_TEXT,
+                dueAt: new Date(dueTs).toISOString(),
+                createdAt: new Date().toISOString(),
+            };
+            await writeDiaryMetaValue(storage, AUTO_MESSAGE_PENDING_META_KEY, JSON.stringify(pendingNotice));
+            await writeAutoMessageLastDueTs(storage, dueTs);
+            return {
+                schedule,
+                pendingNotice,
+            };
+        }
+    }
+
+    return {
+        schedule,
+        pendingNotice: null,
+    };
+}
+
+async function runAutoMessageSweep(server) {
+    if (!server || !server.contexts || autoMessageSweepRunning) return;
+    autoMessageSweepRunning = true;
+    try {
+        const golemIds = Array.from(server.contexts.keys());
+        for (const golemId of golemIds) {
+            try {
+                const storage = resolveDiaryStorage(server, golemId);
+                await getAutoMessageState(storage, { syncDue: true });
+            } catch (error) {
+                console.warn(`⚠️ [DiaryAutoMessage] sweep failed for ${golemId}:`, error.message);
+            }
+        }
+    } finally {
+        autoMessageSweepRunning = false;
+    }
+}
+
+function ensureAutoMessageSweepTimer(server) {
+    if (autoMessageSweepTimer) return;
+    setTimeout(() => {
+        runAutoMessageSweep(server).catch((error) => {
+            console.warn('⚠️ [DiaryAutoMessage] initial sweep failed:', error.message);
+        });
+    }, 6000);
+    autoMessageSweepTimer = setInterval(() => {
+        runAutoMessageSweep(server).catch((error) => {
+            console.warn('⚠️ [DiaryAutoMessage] periodic sweep failed:', error.message);
+        });
+    }, 60 * 1000);
 }
 
 async function closeDiaryDb(storage) {
@@ -1729,6 +1993,7 @@ async function loadEntriesWithRotation(storage, options = {}) {
 module.exports = function registerDiaryRoutes(server) {
     const router = express.Router();
     const requireDiaryWrite = buildOperationGuard(server, 'diary_mutation');
+    ensureAutoMessageSweepTimer(server);
 
     router.get('/api/diary', async (req, res) => {
         try {
@@ -1736,6 +2001,7 @@ module.exports = function registerDiaryRoutes(server) {
             const { golemId } = storage;
             const { entries, rotation } = await loadEntriesWithRotation(storage, { rotateTrigger: 'api_read' });
             const stats = computeDiaryStats(entries);
+            const autoMessage = await getAutoMessageState(storage, { syncDue: true });
             return res.json({
                 success: true,
                 golemId,
@@ -1743,6 +2009,56 @@ module.exports = function registerDiaryRoutes(server) {
                 entries,
                 stats,
                 rotation,
+                autoMessage,
+            });
+        } catch (e) {
+            return res.status(500).json({ error: e.message });
+        }
+    });
+
+    router.get('/api/diary/auto-message', async (req, res) => {
+        try {
+            const storage = resolveDiaryStorage(server, req.query.golemId);
+            const autoMessage = await getAutoMessageState(storage, { syncDue: true });
+            return res.json({
+                success: true,
+                golemId: storage.golemId,
+                autoMessage,
+            });
+        } catch (e) {
+            return res.status(500).json({ error: e.message });
+        }
+    });
+
+    router.put('/api/diary/auto-message', requireDiaryWrite, async (req, res) => {
+        try {
+            const storage = resolveDiaryStorage(server, req.query.golemId);
+            const current = await readAutoMessageSchedule(storage);
+            const body = req.body && typeof req.body === 'object' ? req.body : {};
+            const nextSchedule = await writeAutoMessageSchedule(storage, {
+                enabled: typeof body.enabled === 'boolean' ? body.enabled : current.enabled,
+                time: body.time ?? current.time,
+                timezone: body.timezone ?? current.timezone,
+            });
+
+            const scheduleChanged = current.time !== nextSchedule.time || current.timezone !== nextSchedule.timezone;
+            const toggledOn = current.enabled !== true && nextSchedule.enabled === true;
+
+            if (!nextSchedule.enabled) {
+                await clearAutoMessagePendingNotice(storage);
+            } else if (toggledOn || scheduleChanged) {
+                await clearAutoMessagePendingNotice(storage);
+                await writeAutoMessageLastDueTs(
+                    storage,
+                    computeLatestDueTimestamp(nextSchedule.time, Date.now(), nextSchedule.timezone)
+                );
+            }
+
+            const autoMessage = await getAutoMessageState(storage, { syncDue: true });
+            return res.json({
+                success: true,
+                golemId: storage.golemId,
+                autoMessage,
             });
         } catch (e) {
             return res.status(500).json({ error: e.message });
@@ -1977,6 +2293,7 @@ module.exports = function registerDiaryRoutes(server) {
             const { entries, rotation } = await loadEntriesWithRotation(storage, { rotateTrigger: 'generate_entry' });
             const topic = normalizeContent(req.body && req.body.topic);
             const replyToId = normalizeReplyToId(req.body && req.body.replyToId);
+            const consumeNoticeId = String(req.body && req.body.consumeNoticeId || '').trim().slice(0, 120);
             const targetEntry = replyToId ? entries.find((entry) => entry.id === replyToId) : null;
             const prompt = buildAiDiaryPrompt(entryType, topic, buildRecentExchangeContext(entries), targetEntry || null);
             const content = await tryGenerateWithBrain(context, prompt);
@@ -2001,8 +2318,15 @@ module.exports = function registerDiaryRoutes(server) {
             };
             const mutationResult = appendEntryWithBondUnlock(entries, golemId, entry);
             await writeEntries(storage, entries);
+            if (consumeNoticeId) {
+                const autoState = await getAutoMessageState(storage, { syncDue: false });
+                if (autoState.pendingNotice && autoState.pendingNotice.id === consumeNoticeId) {
+                    await clearAutoMessagePendingNotice(storage);
+                }
+            }
+            const autoMessage = await getAutoMessageState(storage, { syncDue: true });
 
-            return res.json({ success: true, ...mutationResult, rotation });
+            return res.json({ success: true, ...mutationResult, rotation, autoMessage });
         } catch (e) {
             return res.status(500).json({ error: e.message });
         }
