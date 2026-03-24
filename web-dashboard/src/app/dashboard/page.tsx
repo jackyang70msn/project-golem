@@ -6,6 +6,7 @@ import { SystemActionDialogs } from "@/components/SystemActionDialogs";
 import NoGolemsState from "./components/NoGolemsState";
 import DashboardMetricsGrid from "./components/DashboardMetricsGrid";
 import SystemStatusPanel from "./components/SystemStatusPanel";
+import UpdateMarqueeNotice from "./components/UpdateMarqueeNotice";
 import { useDashboardRealtime } from "./hooks/useDashboardRealtime";
 import { useSystemActionDialogs } from "./hooks/useSystemActionDialogs";
 
@@ -28,6 +29,7 @@ export default function DashboardPage() {
 
     return (
         <div className="p-6 h-full flex flex-col space-y-6">
+            <UpdateMarqueeNotice />
             <DashboardMetricsGrid metrics={metrics} memHistory={memHistory} />
 
             <div className="flex-1 grid grid-cols-1 md:grid-cols-3 gap-6 min-h-0">
