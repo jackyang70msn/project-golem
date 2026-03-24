@@ -1,6 +1,6 @@
 # 🖥️ Project Golem Web Dashboard 使用說明
 
-> 最後更新：2026-03-23  
+> 最後更新：2026-03-24  
 > Dashboard 技術棧：Next.js (Static Export) + Tailwind CSS + Socket.IO
 
 ## 一、啟動方式
@@ -55,6 +55,46 @@ node server.js     # 預設：http://localhost:3000
 | 匯入技能書 | 上傳 `.md/.json` 還原技能庫（含匯入前預覽與衝突策略） |
 | 注入技能書 | 重新將技能書注入 Gemini（相當於 `/reload`） |
 | 匯出/匯入膠囊 | 透過 `GOLEM_SKILL::` 字串分享技能 |
+
+---
+
+### 🎭 人格設定 (`/dashboard/persona`)
+
+人格模板管理與人格市集頁面：
+
+- 本地模板管理（建立、編輯、刪除、搜尋、分類）
+- 人格市集瀏覽與一鍵套用
+- 套用後可直接進入設定彈窗調整，並透過 **Save & Restart Window** 寫回設定
+
+---
+
+### 🗂️ Prompt 指令池 (`/dashboard/prompt-pool`)
+
+快捷指令管理中心：
+
+- 建立/編輯/刪除 Prompt 快捷指令
+- 顯示最近使用紀錄與快速複製
+- 提供舊資料衝突檢測與一鍵修復
+
+---
+
+### 📈 Prompt 趨勢視圖 (`/dashboard/prompt-trends`)
+
+可視化分析 Prompt 使用量：
+
+- 整體 14 天趨勢
+- 單指令 14 天趨勢
+- 快捷指令使用排行與區間切換
+
+---
+
+### 📓 繫絆日記 (`/dashboard/diary`)
+
+AI 與使用者互動日記中心：
+
+- 新增使用者日記、AI 日記與 AI 想法
+- 一鍵 Rotate（分層摘要）
+- 備份/還原/預檢流程
 
 ---
 
@@ -115,6 +155,33 @@ node server.js     # 預設：http://localhost:3000
 ---
 
 左側側欄頂部顯示 **Active Golem 狀態**（預設為 golem_A），所有操作（終端機、記憶查詢、技能管理）均針對此實體。
+
+---
+
+## 三、近期功能更新（2026-03-24）
+
+### 1) 全站 i18n 雙語切換（繁中 / English）
+
+- 新增語系切換器（側欄可見），支援 `繁體中文` / `English`
+- 語系偏好會保存於瀏覽器（`localStorage`）並在下次開啟沿用
+- 已補齊主要頁面與關鍵彈窗的雙語文字（含技能、人格、Prompt、MCP、記憶、日記、設定等）
+
+### 2) 首頁更新跑馬燈（GitHub 更新提醒）
+
+- Dashboard 首頁會定期檢查 `/api/system/update/check`
+- 若偵測到 Git 分支落後或新版本可用，會顯示更新跑馬燈提示
+- 提供快速入口引導到「系統總表」的一鍵更新區塊
+
+### 3) 技能市集 / 人格市集顯示策略調整
+
+- 技能市集優先顯示原文字段（如 `original_description`、`category_name.en`）
+- 人格市集優先顯示原文 `name / description / role`，避免被本地語系覆蓋
+- 目的：保留外部市場資料語意，降低翻譯落差
+
+### 4) 人格套用穩定性修正
+
+- 修正人格設定頁重複 hydration 造成欄位被覆蓋問題
+- 現在從市集點擊套用後，可穩定編輯並成功保存套用
 
 ---
 
