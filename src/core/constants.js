@@ -28,11 +28,13 @@ const LIMITS = Object.freeze({
     STABLE_THRESHOLD_THINKING: 60,   // 未收到 BEGIN，Thinking Mode 容忍 60 次 (30秒)
 });
 
-/** @enum {string} Gemini 相關 URL */
+/** @enum {string} LLM 後端 URL */
 const URLS = Object.freeze({
     GEMINI_APP: 'https://gemini.google.com/app',
     GEMINI_FALLBACKS: ['https://gemini.google.com/app?hl=zh-TW'],
     PERPLEXITY_APP: 'https://www.perplexity.ai/',
+    CHATGPT_APP: 'https://chatgpt.com/',
+    CLAUDE_APP: 'https://claude.ai/new',
 });
 
 /** 瀏覽器啟動參數 */
@@ -87,6 +89,34 @@ const MEMORY_TIERS = Object.freeze({
 /** 日誌保留時間 (毫秒) - 向下相容 */
 const LOG_RETENTION_MS = MEMORY_TIERS.HOURLY_RETENTION_MS;
 
+/** 🧠 各後端的 DOM Selector 組合 */
+const BACKEND_SELECTORS = Object.freeze({
+    gemini: {
+        input: 'textarea, div[contenteditable="true"], rich-textarea > div, p[data-placeholder], .ql-editor',
+        send: 'button[aria-label*="Send"], button[aria-label*="傳送"], button[aria-label*="Submit"], span[data-icon="send"], button.bg-primary',
+        response: '.model-response-text, .message-content, .markdown, div[data-test-id="message-content"], .prose',
+        upload: 'input[type="file"], button[aria-label*="Add image"], button[aria-label*="上傳"], button[aria-label*="圖片"]',
+    },
+    perplexity: {
+        input: 'textarea[placeholder], div[contenteditable="true"], textarea',
+        send: 'button[aria-label*="Submit"], button[type="submit"]',
+        response: '.prose, .markdown, [data-testid="answer"]',
+        upload: 'input[type="file"], button[aria-label*="Add"]',
+    },
+    chatgpt: {
+        input: '#prompt-textarea, div[contenteditable="true"][data-id="root"], textarea',
+        send: 'button[data-testid="send-button"], button[aria-label*="Send"], button[type="submit"]',
+        response: '[data-message-author-role="assistant"] .markdown, .prose, div.text-base',
+        upload: 'input[type="file"], button[aria-label*="Add"]',
+    },
+    claude: {
+        input: 'div[contenteditable="true"].ProseMirror, div[contenteditable="true"][role="textbox"], textarea',
+        send: 'button[aria-label*="Send"], button[type="submit"], button.bg-accent-main-100',
+        response: 'div[data-is-streaming] .font-claude-message, .font-claude-message, .prose',
+        upload: 'input[type="file"], button[aria-label*="Add"]',
+    },
+});
+
 module.exports = {
     TIMINGS,
     LIMITS,
@@ -95,4 +125,5 @@ module.exports = {
     LOCK_FILES,
     LOG_RETENTION_MS,
     MEMORY_TIERS,
+    BACKEND_SELECTORS,
 };

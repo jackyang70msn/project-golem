@@ -166,10 +166,20 @@ class GolemBrain {
             isNewSession = true;
         }
 
-        const targetBackend = this.backend === 'perplexity' ? 'perplexity' : 'gemini';
+        const browserBackends = ['gemini', 'perplexity', 'chatgpt', 'claude'];
+        const targetBackend = browserBackends.includes(this.backend) ? this.backend : 'gemini';
         await this._navigateToTarget(targetBackend);
-        console.log(`🚀 [System] ${targetBackend === 'perplexity' ? 'Perplexity' : 'Gemini'} 頁面載入完成 (Golem: ${this.golemId})`);
+
+        const backendNames = { gemini: 'Gemini', perplexity: 'Perplexity', chatgpt: 'ChatGPT', claude: 'Claude' };
+        console.log(`🚀 [System] ${backendNames[targetBackend]} 頁面載入完成 (Golem: ${this.golemId})`);
         // isNewSession is already set above if a new page was created.
+
+        // 套用後端對應的 DOM Selector 組
+        const { BACKEND_SELECTORS } = require('./constants');
+        if (BACKEND_SELECTORS[this.backend]) {
+            Object.assign(this.selectors, BACKEND_SELECTORS[this.backend]);
+            console.log(`🎯 [Brain] 已載入 ${this.backend} 後端的 DOM Selector 組`);
+        }
 
         // 2.5 初始化日誌管理員 (建立目錄)
         await this.chatLogManager.init();
@@ -574,8 +584,10 @@ class GolemBrain {
         }
 
         // 5. 重新開啟對話視窗 (New Chat) 後再注入
-        console.log(`🔄 [Brain][${this.golemId}] 正在開啟新的 ${this.backend === 'perplexity' ? 'Perplexity' : 'Gemini'} 對話視窗...`);
-        const targetBackend = this.backend === 'perplexity' ? 'perplexity' : 'gemini';
+        const browserBackends = ['gemini', 'perplexity', 'chatgpt', 'claude'];
+        const targetBackend = browserBackends.includes(this.backend) ? this.backend : 'gemini';
+        const backendNames = { gemini: 'Gemini', perplexity: 'Perplexity', chatgpt: 'ChatGPT', claude: 'Claude' };
+        console.log(`🔄 [Brain][${this.golemId}] 正在開啟新的 ${backendNames[targetBackend]} 對話視窗...`);
         await this._navigateToTarget(targetBackend);
 
         await this._injectSystemPrompt(true);
@@ -685,7 +697,7 @@ class GolemBrain {
 
     /**
      * 🌐 導航至目標 AI 後端，支援多網址高可用 (Failover)
-     * @param {string} backend - 'gemini' | 'perplexity'
+     * @param {string} backend - 'gemini' | 'perplexity' | 'chatgpt' | 'claude'
      */
     async _navigateToTarget(backend) {
         if (!this.page) return;
@@ -693,6 +705,10 @@ class GolemBrain {
         let urls = [];
         if (backend === 'perplexity') {
             urls = [URLS.PERPLEXITY_APP];
+        } else if (backend === 'chatgpt') {
+            urls = [URLS.CHATGPT_APP];
+        } else if (backend === 'claude') {
+            urls = [URLS.CLAUDE_APP];
         } else {
             // 優先從 ConfigManager 讀取使用者設定的 URLs，若無則使用 constants 中的預設值
             urls = ConfigManager.CONFIG.GEMINI_URLS && ConfigManager.CONFIG.GEMINI_URLS.length > 0

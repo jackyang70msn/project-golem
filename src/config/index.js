@@ -27,7 +27,7 @@ const isPlaceholder = (str) => {
 
 const normalizeBackend = (value) => {
     const backend = cleanEnv(value).toLowerCase();
-    if (backend === 'gemini' || backend === 'ollama' || backend === 'perplexity') return backend;
+    if (['gemini', 'ollama', 'perplexity', 'chatgpt', 'claude'].includes(backend)) return backend;
     return 'gemini';
 };
 
