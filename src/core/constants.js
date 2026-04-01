@@ -39,9 +39,9 @@ const URLS = Object.freeze({
 
 /** 瀏覽器啟動參數 */
 const BROWSER_ARGS = Object.freeze([
-    '--no-sandbox',
+    // '--no-sandbox',  // ⚠️ 在 macOS 上可能導致 Chromium 崩潰，已禁用
     '--disable-dev-shm-usage',
-    '--disable-setuid-sandbox',
+    // '--disable-setuid-sandbox',  // 僅適用於 Linux，在 macOS 上無效
     '--window-size=1366,768',
     '--disable-blink-features=AutomationControlled',
     '--disable-gpu',
