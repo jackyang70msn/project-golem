@@ -37,35 +37,48 @@ const URLS = Object.freeze({
     CLAUDE_APP: 'https://claude.ai/new',
 });
 
-/** 瀏覽器啟動參數 */
-const BROWSER_ARGS = Object.freeze([
-    // '--no-sandbox',  // ⚠️ 在 macOS 上可能導致 Chromium 崩潰，已禁用
-    '--disable-dev-shm-usage',
-    // '--disable-setuid-sandbox',  // 僅適用於 Linux，在 macOS 上無效
-    '--window-size=1366,768',
-    '--disable-blink-features=AutomationControlled',
-    '--disable-gpu',
+/** 瀏覽器啟動參數 (環境感知) */
+function getBrowserArgs() {
+    const isMacOS = process.platform === 'darwin';
+    const isSandboxDisabled = process.env.PLAYWRIGHT_SANDBOX === 'false';
 
-    // --- 記憶體與程序最佳化 ---
-    '--disable-site-isolation-trials',
-    '--disable-features=IsolateOrigins,site-per-process',
-    '--renderer-process-limit=1',
+    const args = [
+        // 🔒 沙箱策略：
+        // - macOS: 永遠不加 --no-sandbox（系統會自動沙箱化）
+        // - Linux 容器: 允許通過 PLAYWRIGHT_SANDBOX=false 關閉沙箱
+        ...(isSandboxDisabled && !isMacOS ? ['--no-sandbox'] : []),
+        '--disable-dev-shm-usage',
+        // - 僅在 Linux 且沙箱關閉時啟用
+        ...(isSandboxDisabled && !isMacOS ? ['--disable-setuid-sandbox'] : []),
+        '--window-size=1366,768',
+        '--disable-blink-features=AutomationControlled',
+        '--disable-gpu',
 
-    // --- 停用背景通訊與服務 ---
-    '--disable-background-networking',
-    '--disable-sync',
-    '--disable-translate',
-    '--disable-default-apps',
-    '--disable-extensions',
-    '--disable-component-update',
+        // --- 記憶體與程序最佳化 ---
+        '--disable-site-isolation-trials',
+        '--disable-features=IsolateOrigins,site-per-process',
+        '--renderer-process-limit=1',
 
-    // --- 停用多餘 UI 與媒體 ---
-    '--mute-audio',
-    '--no-first-run',
-    '--no-default-browser-check',
-    '--disable-notifications',
-    '--disable-animations',
-]);
+        // --- 停用背景通訊與服務 ---
+        '--disable-background-networking',
+        '--disable-sync',
+        '--disable-translate',
+        '--disable-default-apps',
+        '--disable-extensions',
+        '--disable-component-update',
+
+        // --- 停用多餘 UI 與媒體 ---
+        '--mute-audio',
+        '--no-first-run',
+        '--no-default-browser-check',
+        '--disable-notifications',
+        '--disable-animations',
+    ];
+
+    return args;
+}
+
+const BROWSER_ARGS = Object.freeze(getBrowserArgs());
 
 /** Chrome Lock 檔案名稱 */
 const LOCK_FILES = Object.freeze(['SingletonLock', 'SingletonSocket', 'SingletonCookie']);
