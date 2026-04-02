@@ -1115,7 +1115,8 @@ async function handleUnifiedMessage(ctx, forceTargetId = null) {
                 try {
                     console.log(`📡 [System] 正在將遠端附件轉化為本地原生附件... (${attachment.url})`);
                     const tempDir = path_sync.join(process.cwd(), 'data', 'temp_uploads');
-                    
+                    fs_sync.mkdirSync(tempDir, { recursive: true });
+
                     // 根據 mimeType 推斷副檔名
                     let ext = 'bin';
                     if (attachment.mimeType) {

@@ -133,7 +133,8 @@ class UniversalContext {
             if (fileId) {
                 try {
                     const file = await this.instance.getFile(fileId);
-                    return { url: `https://api.telegram.org/file/bot${CONFIG.TG_TOKEN}/${file.file_path}`, mimeType: mimeType };
+                    const tgToken = (this.instance && this.instance._token) || CONFIG.TG_TOKEN;
+                    return { url: `https://api.telegram.org/file/bot${tgToken}/${file.file_path}`, mimeType: mimeType };
                 } catch (e) { console.error("TG File Error:", e); }
             }
         } else {
