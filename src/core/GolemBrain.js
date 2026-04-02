@@ -730,6 +730,12 @@ class GolemBrain {
                 // 等待 domcontentloaded 以確保基本結構已載入
                 await this.page.goto(url, { waitUntil: 'domcontentloaded', timeout: 45000 });
                 console.log(`✅ [Brain] 成功導航至: ${url}`);
+
+                // 🔒 Claude 和 Perplexity 需要等待 Cloudflare 驗證完成
+                if (backend === 'claude' || backend === 'perplexity') {
+                    await this._waitForChallengeResolution(backend);
+                }
+
                 return; // 成功則退出
             } catch (e) {
                 console.warn(`⚠️ [Brain] 導航至 ${url} 失敗: ${e.message}`);
@@ -739,6 +745,41 @@ class GolemBrain {
         }
 
         throw new Error(`❌ [Brain] 無法連接至 ${backend.toUpperCase()}。所有嘗試過的網址皆失效。最後錯誤: ${lastError ? lastError.message : '未知'}`);
+    }
+
+    /**
+     * 🔒 等待 Cloudflare 驗證完成（Claude、Perplexity）
+     * @param {string} backend - 'claude' | 'perplexity'
+     */
+    async _waitForChallengeResolution(backend) {
+        const { BACKEND_SELECTORS } = require('./constants');
+        const selectors = BACKEND_SELECTORS[backend];
+        if (!selectors) return;
+
+        const inputSelector = selectors.input;
+        const maxWaitTime = 60000; // 60 秒超時
+        const startTime = Date.now();
+        const pollInterval = 1000; // 每 1 秒檢查一次
+
+        console.log(`🔒 [Brain] 正在等待 ${backend.toUpperCase()} Cloudflare 驗證完成...`);
+
+        while (Date.now() - startTime < maxWaitTime) {
+            try {
+                // 檢查輸入框是否存在（代表驗證已完成、應用已加載）
+                const inputElement = await this.page.$(inputSelector);
+                if (inputElement) {
+                    console.log(`✅ [Brain] ${backend.toUpperCase()} 驗證完成，應用已就緒。`);
+                    return;
+                }
+            } catch (e) {
+                // 繼續等待
+            }
+
+            // 等待一段時間再檢查
+            await new Promise(r => setTimeout(r, pollInterval));
+        }
+
+        console.warn(`⚠️ [Brain] ${backend.toUpperCase()} 驗證等待超時（60 秒），但繼續嘗試使用。使用者可能需要手動驗證。`);
     }
 
     /**
