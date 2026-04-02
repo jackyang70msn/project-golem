@@ -89,6 +89,9 @@ export default function EngineTab({ env, onChangeEnv }: EngineTabProps) {
                                 className="w-full bg-secondary/30 border border-border focus:border-primary rounded-lg px-3 py-2 text-sm text-foreground transition-colors"
                             >
                                 <option value="gemini">{t("settings.engine.backend.gemini")}</option>
+                                <option value="claude">{t("settings.engine.backend.claude")}</option>
+                                <option value="chatgpt">{t("settings.engine.backend.chatgpt")}</option>
+                                <option value="perplexity">{t("settings.engine.backend.perplexity")}</option>
                                 <option value="ollama">{t("settings.engine.backend.ollama")}</option>
                             </select>
                         </div>

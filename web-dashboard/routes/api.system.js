@@ -26,7 +26,7 @@ function normalizeMemoryMode(modeRaw) {
 
 function normalizeBackend(backendRaw) {
     const backend = String(backendRaw || '').trim().toLowerCase();
-    if (backend === 'gemini' || backend === 'ollama' || backend === 'perplexity') {
+    if (['gemini', 'ollama', 'perplexity', 'chatgpt', 'claude'].includes(backend)) {
         return backend;
     }
     return 'gemini';
