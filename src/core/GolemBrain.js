@@ -731,9 +731,16 @@ class GolemBrain {
                 await this.page.goto(url, { waitUntil: 'domcontentloaded', timeout: 45000 });
                 console.log(`✅ [Brain] 成功導航至: ${url}`);
 
-                // 🔒 Claude 和 Perplexity 需要等待 Cloudflare 驗證完成
+                // 🔒 Claude 和 Perplexity 需要等待應用加載（可能需要 Cloudflare 驗證）
                 if (backend === 'claude' || backend === 'perplexity') {
-                    await this._waitForChallengeResolution(backend);
+                    const isReady = await this._waitForChallengeResolution(backend);
+                    if (!isReady) {
+                        // 驗證卡住，拋出有用的錯誤提示
+                        throw new Error(
+                            `Cloudflare 驗證失敗。${backend.toUpperCase()} 需要有頭模式首次登入。\n` +
+                            `請執行：PLAYWRIGHT_HEADLESS= ./setup.sh --start，完成驗證後再試。`
+                        );
+                    }
                 }
 
                 return; // 成功則退出
@@ -748,28 +755,42 @@ class GolemBrain {
     }
 
     /**
-     * 🔒 等待 Cloudflare 驗證完成（Claude、Perplexity）
+     * 🔒 等待應用加載，處理 Cloudflare 驗證（Claude、Perplexity）
      * @param {string} backend - 'claude' | 'perplexity'
+     * @returns {boolean} true = 應用就緒，false = 需要有頭模式驗證
      */
     async _waitForChallengeResolution(backend) {
         const { BACKEND_SELECTORS } = require('./constants');
         const selectors = BACKEND_SELECTORS[backend];
-        if (!selectors) return;
+        if (!selectors) return true;
 
         const inputSelector = selectors.input;
-        const maxWaitTime = 60000; // 60 秒超時
+        const maxWaitTime = 20000; // 20 秒超時
         const startTime = Date.now();
-        const pollInterval = 1000; // 每 1 秒檢查一次
+        const pollInterval = 500; // 每 500ms 檢查一次
 
-        console.log(`🔒 [Brain] 正在等待 ${backend.toUpperCase()} Cloudflare 驗證完成...`);
+        console.log(`⏳ [Brain] 正在等待 ${backend.toUpperCase()} 應用加載...`);
 
         while (Date.now() - startTime < maxWaitTime) {
             try {
-                // 檢查輸入框是否存在（代表驗證已完成、應用已加載）
+                // 檢查輸入框是否存在（代表應用已加載）
                 const inputElement = await this.page.$(inputSelector);
                 if (inputElement) {
-                    console.log(`✅ [Brain] ${backend.toUpperCase()} 驗證完成，應用已就緒。`);
-                    return;
+                    console.log(`✅ [Brain] ${backend.toUpperCase()} 應用已就緒。`);
+                    return true;
+                }
+
+                // 檢查是否在 Cloudflare 驗證頁面
+                const cfChallenge = await this.page.$('input[name="cf_clearance"], div[class*="challenge"], h1:has-text("Just a moment")');
+                if (cfChallenge) {
+                    console.warn(`\n❌ [Brain] Cloudflare 驗證偵測：${backend.toUpperCase()} 需要有頭模式首次登入\n`);
+                    console.warn(`📋 解決方案：\n`);
+                    console.warn(`  1️⃣  在有頭模式下登入一次（會保存 Cookies）：\n`);
+                    console.warn(`     PLAYWRIGHT_HEADLESS= ./setup.sh --start\n`);
+                    console.warn(`  2️⃣  手動完成 Cloudflare 驗證\n`);
+                    console.warn(`  3️⃣  登入後按 Ctrl+C 停止\n`);
+                    console.warn(`  4️⃣  之後無頭模式即可使用（Cookies 已保存）\n`);
+                    return false;
                 }
             } catch (e) {
                 // 繼續等待
@@ -779,7 +800,10 @@ class GolemBrain {
             await new Promise(r => setTimeout(r, pollInterval));
         }
 
-        console.warn(`⚠️ [Brain] ${backend.toUpperCase()} 驗證等待超時（60 秒），但繼續嘗試使用。使用者可能需要手動驗證。`);
+        console.warn(`⚠️ [Brain] ${backend.toUpperCase()} 應用加載超時（20 秒）。`);
+        console.warn(`💡 [Brain] 如果卡在 Cloudflare 驗證，請用有頭模式完成驗證：`);
+        console.warn(`   PLAYWRIGHT_HEADLESS= ./setup.sh --start`);
+        return false;
     }
 
     /**
