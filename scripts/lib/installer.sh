@@ -200,9 +200,22 @@ golems_wizard() {
 
 step_install_core() {
     echo -e "  📦 安裝核心依賴..."
+
+    # 智慧跳過：若 node_modules 比 package.json 新（即依賴未更新），跳過安裝
+    if [ "${GOLEM_SKIP_INSTALL:-false}" = "true" ]; then
+        echo -e "    ${DIM}⏩ GOLEM_SKIP_INSTALL=true，跳過核心依賴安裝${NC}"
+        ui_success "核心依賴安裝完成\n"
+        return 0
+    fi
+    if [ -d "$SCRIPT_DIR/node_modules" ] && [ "$SCRIPT_DIR/node_modules" -nt "$SCRIPT_DIR/package.json" ]; then
+        echo -e "    ${DIM}⏩ 核心依賴已是最新，跳過安裝${NC}"
+        ui_success "核心依賴安裝完成\n"
+        return 0
+    fi
+
     echo -e "  ${DIM}  (playwright, blessed, gemini-ai, discord.js ...)${NC}"
     log "Installing core dependencies"
-    
+
     local arch=$(uname -m)
     local os=$(os_detect)
     local npm_flags="--no-fund --no-audit"
@@ -307,17 +320,29 @@ step_install_dashboard() {
     echo -e "    ${CYAN}偵測到 Dashboard 模組，開始安裝...${NC}"
 
     pushd "$SCRIPT_DIR/web-dashboard" > /dev/null
-    
-    if ! run_quiet_step "安裝 Dashboard 依賴" npm install --no-fund --no-audit; then
-        ui_error "Dashboard 依賴安裝失敗"
-        update_env "ENABLE_WEB_DASHBOARD" "false"
-        log "Dashboard deps install failed"
-        popd > /dev/null
-        echo ""
-        return
+
+    # 智慧跳過 npm install
+    if [ "${GOLEM_SKIP_INSTALL:-false}" = "true" ] || \
+       ([ -d "node_modules" ] && [ "node_modules" -nt "package.json" ]); then
+        echo -e "    ${DIM}⏩ Dashboard 依賴已是最新，跳過安裝${NC}"
+    else
+        if ! run_quiet_step "安裝 Dashboard 依賴" npm install --no-fund --no-audit; then
+            ui_error "Dashboard 依賴安裝失敗"
+            update_env "ENABLE_WEB_DASHBOARD" "false"
+            log "Dashboard deps install failed"
+            popd > /dev/null
+            echo ""
+            return
+        fi
     fi
 
-    if [ "${DASHBOARD_DEV_MODE:-false}" = "true" ]; then
+    # 智慧跳過 build：.next 目錄存在且比 src 目錄新（即代碼未更新）
+    if [ "${GOLEM_SKIP_INSTALL:-false}" = "true" ] || \
+       ([ -d ".next" ] && [ ".next" -nt "src" ]); then
+        echo -e "    ${DIM}⏩ Dashboard 建置已是最新，跳過建置${NC}"
+        update_env "ENABLE_WEB_DASHBOARD" "true"
+        log "Dashboard build skipped (up to date)"
+    elif [ "${DASHBOARD_DEV_MODE:-false}" = "true" ]; then
         ui_info "偵測到 DASHBOARD_DEV_MODE=true，跳過 Next.js 建置步驟。"
         update_env "ENABLE_WEB_DASHBOARD" "true"
         log "Dashboard build skipped (Dev Mode)"
