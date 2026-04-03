@@ -75,7 +75,9 @@ module.exports = function registerStaticRoutes(server) {
         }
 
         try {
-            const isConfigured = process.env.SYSTEM_CONFIGURED === 'true';
+            const EnvManager = require('../../src/utils/EnvManager');
+            const envVars = EnvManager.readEnv();
+            const isConfigured = envVars.SYSTEM_CONFIGURED === 'true';
             if (!isConfigured) {
                 console.log(`🚩 [WebServer] System NOT initialized. Redirecting ${req.path} to /dashboard/system-setup`);
                 return res.redirect('/dashboard/system-setup');
@@ -86,25 +88,31 @@ module.exports = function registerStaticRoutes(server) {
         return next();
     });
 
+    const sendDashboardFile = (res, filePath) => {
+        if (fs.existsSync(filePath)) {
+            return res.sendFile(filePath);
+        }
+        const fallback = path.join(publicPath, 'dashboard.html');
+        if (fs.existsSync(fallback)) {
+            return res.sendFile(fallback);
+        }
+        return res.status(503).send(
+            '<html><head><meta http-equiv="refresh" content="5"></head>'
+            + '<body style="background:#0a0a0a;color:#eee;font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;text-align:center;">'
+            + '<div><h1>⏳ Dashboard 正在建置中...</h1><p>頁面將每 5 秒自動重新整理，建置完成後會自動進入。</p></div></body></html>'
+        );
+    };
+
     dashboardRoutes.forEach((route) => {
         server.app.get(route, (req, res) => {
             const fileName = route === '/dashboard' ? 'dashboard.html' : `${route.replace(/^\//, '')}.html`;
-            const fullPath = path.join(publicPath, fileName);
-            if (fs.existsSync(fullPath)) {
-                return res.sendFile(fullPath);
-            }
-            return res.sendFile(path.join(publicPath, 'dashboard.html'));
+            return sendDashboardFile(res, path.join(publicPath, fileName));
         });
     });
 
     server.app.get(/\/dashboard\/.*/, (req, res) => {
         const normalizedPath = req.path.replace(/\/$/, '');
         const htmlFileName = `${normalizedPath.replace(/^\//, '')}.html`;
-        const fullPath = path.join(publicPath, htmlFileName);
-
-        if (fs.existsSync(fullPath)) {
-            return res.sendFile(fullPath);
-        }
-        return res.sendFile(path.join(publicPath, 'dashboard.html'));
+        return sendDashboardFile(res, path.join(publicPath, htmlFileName));
     });
 };

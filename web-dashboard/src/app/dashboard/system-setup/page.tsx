@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import {
     HardDrive, Brain, AlertTriangle,
@@ -88,7 +89,8 @@ const LOCAL_MODELS = [
 ];
 
 export default function SystemSetupPage() {
-    const { isSystemConfigured } = useGolem();
+    const router = useRouter();
+    const { isSystemConfigured, markSystemConfigured } = useGolem();
 
     const [userDataDir, setUserDataDir] = useState("./golem_memory");
     const [memoryMode, setMemoryMode] = useState<MemoryMode>("lancedb-pro");
@@ -185,7 +187,8 @@ export default function SystemSetupPage() {
             if (!data.success) {
                 throw new Error(data.error || "儲存失敗，請稍後再試");
             }
-            window.location.href = "/dashboard/agents/create";
+            markSystemConfigured();
+            router.push("/dashboard/agents/create");
         } catch (error: unknown) {
             setError(getErrorMessage(error));
         } finally {

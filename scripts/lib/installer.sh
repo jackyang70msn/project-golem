@@ -347,14 +347,38 @@ step_install_dashboard() {
         update_env "ENABLE_WEB_DASHBOARD" "true"
         log "Dashboard build skipped (Dev Mode)"
     elif ! run_quiet_step "建置 Dashboard (Next.js Build)" npm run build; then
-        ui_warn "Dashboard 建置失敗！"
-        ui_warn "這通常是因為環境或依賴問題，您可以之後在選單中單獨嘗試 [4] 建置。"
-        update_env "ENABLE_WEB_DASHBOARD" "true"  # 保持為 true，讓 launch_system 的自動修復邏輯能介入
-        log "Dashboard build failed, kept as enabled for later retry"
+        ui_warn "Dashboard 首次建置失敗，正在重試..."
+        log "Dashboard build failed, retrying once"
+        # 重試一次：重裝依賴再 build
+        npm install --no-fund --no-audit >/dev/null 2>&1
+        if run_quiet_step "重試建置 Dashboard" npm run build; then
+            ui_success "Dashboard 重試建置成功"
+            update_env "ENABLE_WEB_DASHBOARD" "true"
+            log "Dashboard build succeeded on retry"
+        else
+            ui_warn "Dashboard 建置失敗！"
+            ui_warn "這通常是因為環境或依賴問題，您可以之後在選單中單獨嘗試 [4] 建置。"
+            update_env "ENABLE_WEB_DASHBOARD" "true"  # 保持為 true，讓 launch_system 的自動修復邏輯能介入
+            log "Dashboard build failed after retry, kept as enabled for later retry"
+        fi
     else
         ui_success "Dashboard 建置完成"
         update_env "ENABLE_WEB_DASHBOARD" "true"
         log "Dashboard build succeeded"
+    fi
+
+    # 驗證 build 產出是否存在
+    if [ ! -f "out/dashboard.html" ] && [ "${DASHBOARD_DEV_MODE:-false}" != "true" ]; then
+        ui_warn "Dashboard 建置產出 (out/) 不存在，嘗試緊急建置..."
+        npm install --no-fund --no-audit >/dev/null 2>&1
+        npm run build >/dev/null 2>&1
+        if [ -f "out/dashboard.html" ]; then
+            ui_success "緊急建置成功"
+            log "Dashboard emergency build succeeded"
+        else
+            ui_warn "緊急建置仍失敗，Dashboard 啟動後會顯示等待頁面"
+            log "Dashboard emergency build also failed"
+        fi
     fi
     
     popd > /dev/null

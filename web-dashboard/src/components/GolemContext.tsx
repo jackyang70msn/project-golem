@@ -24,6 +24,7 @@ interface GolemContextType {
     refreshGolems: () => Promise<void>;
     startGolem: (id: string) => Promise<boolean>;
     isSystemConfigured: boolean;
+    markSystemConfigured: () => void;
     isBooting: boolean;
     isLoadingSystem: boolean;
     isSingleNode: boolean;
@@ -43,6 +44,7 @@ const GolemContext = createContext<GolemContextType>({
     refreshGolems: async () => { },
     startGolem: async () => false,
     isSystemConfigured: true,
+    markSystemConfigured: () => { },
     isBooting: false,
     isLoadingSystem: true,
     isSingleNode: true,
@@ -252,6 +254,7 @@ export function GolemProvider({ children }: { children: React.ReactNode }) {
             },
             startGolem,
             isSystemConfigured,
+            markSystemConfigured: () => setIsSystemConfigured(true),
             isBooting,
             isLoadingSystem,
             isSingleNode,

@@ -181,6 +181,7 @@ module.exports = function registerSystemRoutes(server) {
 
             updates.SYSTEM_CONFIGURED = 'true';
             EnvManager.updateEnv(updates);
+            process.env.SYSTEM_CONFIGURED = 'true';
             console.log('📝 [System] System configuration updated via web dashboard. Flag: SYSTEM_CONFIGURED=true');
 
             if (updates.ALLOW_REMOTE_ACCESS !== undefined) {

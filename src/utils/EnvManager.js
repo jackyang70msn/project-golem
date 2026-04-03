@@ -19,7 +19,7 @@ class EnvManager {
             return {};
         }
 
-        const content = fs.readFileSync(this.envPath, 'utf8');
+        const content = fs.readFileSync(this.envPath, 'utf8').replace(/\r\n/g, '\n').replace(/\r/g, '\n');
         const envObj = {};
 
         content.split('\n').forEach(line => {
@@ -59,7 +59,7 @@ class EnvManager {
             }
         }
 
-        let content = fs.readFileSync(this.envPath, 'utf8');
+        let content = fs.readFileSync(this.envPath, 'utf8').replace(/\r\n/g, '\n').replace(/\r/g, '\n');
         let modifications = 0;
 
         for (const [key, value] of Object.entries(payload)) {

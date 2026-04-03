@@ -414,7 +414,8 @@ function DashboardContent({
 
     // 系統設定保護：若 GEMINI_API_KEYS 未設定且不在設定頁，就導向設定向導
     useEffect(() => {
-        if (!isLoadingSystem && !isSystemConfigured && pathname !== '/dashboard/system-setup') {
+        const setupPages = ['/dashboard/system-setup', '/dashboard/agents/create', '/dashboard/setup'];
+        if (!isLoadingSystem && !isSystemConfigured && !setupPages.some(p => pathname.startsWith(p))) {
             router.push('/dashboard/system-setup');
         }
     }, [isLoadingSystem, isSystemConfigured, pathname, router]);

@@ -38,7 +38,14 @@ update_env() {
     local val=$2
     # Ensure file exists
     [ ! -f "$DOT_ENV_PATH" ] && touch "$DOT_ENV_PATH"
-    
+
+    # Normalize CRLF to LF (prevents sed corruption on Windows-origin files)
+    if [[ "$OSTYPE" != "darwin"* ]]; then
+        sed -i 's/\r$//' "$DOT_ENV_PATH"
+    else
+        sed -i '' 's/\r$//' "$DOT_ENV_PATH"
+    fi
+
     # Escape for sed
     val=$(echo "$val" | sed -e 's/[\/&]/\\&/g')
 
