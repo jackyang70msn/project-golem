@@ -40,7 +40,7 @@
     "adm-zip": "^0.5.16",
     "apache-arrow": "^18.1.0",
     "blessed": "0.1.81",
-    "blessed-contrib": "4.11.0",
+    "blessed-contrib": "^4.8.13",
     "cors": "^2.8.6",
     "discord.js": "^14.25.1",
     "dotenv": "16.4.5",
