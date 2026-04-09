@@ -2,6 +2,68 @@ const ResponseParser = require('../../src/utils/ResponseParser');
 const MultiAgentHandler = require('../../src/core/action_handlers/MultiAgentHandler');
 const SkillHandler = require('../../src/core/action_handlers/SkillHandler');
 const CommandHandler = require('../../src/core/action_handlers/CommandHandler');
+const fs = require('fs');
+const path = require('path');
+
+function hasFileSuccessClaim(replyText = '') {
+    return /(已成功建立|已建立|已生成|已成功生成|已寫入|successfully\s+(created|generated|written)|has been\s+(created|generated|written))/i.test(replyText);
+}
+
+function extractClaimedPaths(replyText = '') {
+    if (!replyText) return [];
+    const matches = replyText.match(/(?:\.\/)?(?:logs|data|config|golem_memory)\/[A-Za-z0-9._\-\/]+\.[A-Za-z0-9]+/g) || [];
+    const unique = new Set();
+    for (const raw of matches) {
+        const cleaned = String(raw || '').trim().replace(/^[`'"]+|[`'".,!?;:]+$/g, '');
+        if (!cleaned) continue;
+        const rel = cleaned.startsWith('./') ? cleaned : `./${cleaned}`;
+        unique.add(rel);
+    }
+    return Array.from(unique);
+}
+
+function actionMentionsPath(actions = [], relPath = '') {
+    if (!relPath || !Array.isArray(actions)) return false;
+    const normalizedRel = relPath.replace(/\\/g, '/');
+    const bareRel = normalizedRel.replace(/^\.\//, '');
+    const baseName = path.basename(normalizedRel);
+
+    return actions.some((act) => {
+        if (!act || typeof act !== 'object') return false;
+        const chunks = [
+            act.cmd,
+            act.parameter,
+            act.command,
+            typeof act.args === 'string' ? act.args : '',
+            typeof act.summary === 'string' ? act.summary : '',
+        ]
+            .filter(Boolean)
+            .map((x) => String(x));
+
+        if (chunks.length === 0) return false;
+        const merged = chunks.join('\n');
+        return merged.includes(normalizedRel) || merged.includes(bareRel) || merged.includes(baseName);
+    });
+}
+
+function applyFileClaimGuard(replyText = '', actions = []) {
+    if (!replyText || !hasFileSuccessClaim(replyText)) return { replyText, mismatches: [] };
+    const claimedPaths = extractClaimedPaths(replyText);
+    if (claimedPaths.length === 0) return { replyText, mismatches: [] };
+
+    const mismatches = claimedPaths.filter((relPath) => {
+        const absPath = path.resolve(process.cwd(), relPath);
+        const exists = fs.existsSync(absPath);
+        const pendingWrite = actionMentionsPath(actions, relPath);
+        return !exists && !pendingWrite;
+    });
+
+    if (mismatches.length === 0) return { replyText, mismatches: [] };
+
+    const mismatchText = mismatches.map((p) => `- ${p}`).join('\n');
+    const guardedReply = `${replyText}\n\n⚠️ [防呆校驗] 以下檔案目前尚未在本機確認存在，前述敘述可能為預估：\n${mismatchText}`;
+    return { replyText: guardedReply, mismatches };
+}
 
 // ============================================================
 // 🧬 NeuroShunter (神經分流中樞 - 核心路由器)
@@ -34,6 +96,15 @@ class NeuroShunter {
 
         if (parsed.reply && parsed.reply.includes('[INTERVENE]')) {
             parsed.reply = parsed.reply.replace(/\[INTERVENE\]/g, '').trim();
+        }
+        
+        // 🧯 防呆：回覆若宣稱檔案已建立，先做實體存在檢查，避免幻覺回報成功。
+        if (parsed.reply) {
+            const guarded = applyFileClaimGuard(parsed.reply, parsed.actions);
+            if (guarded.mismatches.length > 0) {
+                console.warn(`⚠️ [NeuroShunter] 檔案宣稱校驗失敗: ${guarded.mismatches.join(', ')}`);
+                parsed.reply = guarded.replyText;
+            }
         }
 
         // 1. 處理長期記憶寫入

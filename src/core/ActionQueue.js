@@ -4,6 +4,7 @@ class ActionQueue {
         this.queue = [];
         this.isProcessing = false;
         this.memoryPressureGuard = null;
+        this._deferCount = 0;
     }
 
     setMemoryPressureGuard(guard) {
@@ -44,19 +45,31 @@ class ActionQueue {
         this.isProcessing = true;
         const task = this.queue.shift();
 
-        if (
-            this.memoryPressureGuard &&
-            task &&
+        const pressureSnapshot = this.memoryPressureGuard ? this.memoryPressureGuard.getSnapshot() : null;
+        const pressure = pressureSnapshot && pressureSnapshot.pressure ? pressureSnapshot.pressure : 'normal';
+        const shouldDeferForPressure =
+            Boolean(this.memoryPressureGuard) &&
+            Boolean(task) &&
             !task.isPriority &&
-            ['warning', 'critical', 'fatal'].includes(this.memoryPressureGuard.getSnapshot().pressure)
-        ) {
+            // NOTE:
+            // warning 不再阻塞 Action Queue，避免一般寫檔任務長時間飢餓。
+            ['critical', 'fatal'].includes(pressure);
+
+        if (shouldDeferForPressure) {
             this.queue.push(task);
             this.isProcessing = false;
+            this._deferCount += 1;
+            if (this._deferCount === 1 || this._deferCount % 10 === 0) {
+                console.warn(
+                    `⏸️ [Action Queue:${this.golemId}] 因記憶體壓力(${pressure})暫緩非優先任務，已延後 ${this._deferCount} 次。`
+                );
+            }
             setTimeout(() => this._processQueue(), 750);
             return;
         }
 
         try {
+            this._deferCount = 0;
             console.log(`⚙️ [Action Queue:${this.golemId}] 從隊列取出，開始非同步執行行動任務...`);
 
             // 如果上層有指定發送 Typing 可以先發
